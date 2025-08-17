@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.google.services)  // Koristiti alias umesto direktnog ID-ja
 }
 
 android {
@@ -26,10 +27,14 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+
+    buildFeatures {
+        viewBinding true  // Omogućiti View Binding
+    }
 }
 
 dependencies {
-
+    // Existing dependencies
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity
@@ -37,4 +42,34 @@ dependencies {
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
+
+    // Firebase BOM - mora biti prvo
+    implementation platform(libs.firebase.bom)
+    implementation libs.firebase.auth
+    implementation libs.firebase.firestore
+    implementation libs.firebase.storage
+    implementation libs.firebase.messaging
+
+    // Navigation Component
+    implementation libs.navigation.fragment
+    implementation libs.navigation.ui
+
+    // Lifecycle
+    implementation libs.lifecycle.viewmodel
+    implementation libs.lifecycle.livedata
+
+    // UI Components
+    implementation libs.recyclerview
+    implementation libs.viewpager2
+    implementation libs.fragment
+
+    // External Libraries
+    implementation libs.zxing.embedded
+    implementation libs.zxing.core
+    implementation libs.lottie
+    implementation libs.glide
+    implementation libs.preference
+
+    // MPAndroidChart (mora direktno jer nije u Maven Central)
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 }

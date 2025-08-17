@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "577293449132",
+    "project_id": "ma2025-tim10",
+    "storage_bucket": "ma2025-tim10.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:577293449132:android:3c7113ed44ab7f2008ac09",
+        "android_client_info": {
+          "package_name": "com.example.ma2025"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-bpaLj6a4X_QXhfSIdpjZuUZEx62SjG0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
