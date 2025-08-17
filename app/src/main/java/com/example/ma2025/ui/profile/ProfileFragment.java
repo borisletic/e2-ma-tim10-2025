@@ -121,9 +121,9 @@ public class ProfileFragment extends Fragment {
         binding.tvPp.setText(String.valueOf(user.getPp()));
         binding.tvCoins.setText(String.valueOf(user.getCoins()));
         binding.tvActiveDays.setText(String.valueOf(user.getActiveDays()));
-        //binding.tvTotalTasks.setText(String.valueOf(user.getTotalTasksCreated()));
+        binding.tvTotalTasks.setText(String.valueOf(user.getTotalTasksCreated()));
         binding.tvCompletedTasks.setText(String.valueOf(user.getTotalTasksCompleted()));
-        //binding.tvLongestStreak.setText(String.valueOf(user.getLongestStreak()));
+        binding.tvLongestStreak.setText(String.valueOf(user.getLongestStreak()));
 
         setAvatarImage(user.getAvatar());
 
