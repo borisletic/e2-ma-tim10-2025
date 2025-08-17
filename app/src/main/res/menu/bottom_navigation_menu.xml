@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_profile"
+        android:icon="@drawable/ic_person"
+        android:title="Profil" />
+
+    <item
+        android:id="@+id/nav_statistics"
+        android:icon="@drawable/ic_statistics"
+        android:title="Statistike" />
+
+    <item
+        android:id="@+id/nav_levels"
+        android:icon="@drawable/ic_level"
+        android:title="Nivoi" />
+
+    <item
+        android:id="@+id/nav_equipment"
+        android:icon="@drawable/ic_equipment"
+        android:title="Oprema" />
+
+    <item
+        android:id="@+id/nav_friends"
+        android:icon="@drawable/ic_friends"
+        android:title="Prijatelji" />
+
+</menu>

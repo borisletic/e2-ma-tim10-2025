@@ -1,3 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MA2025</string>
+
+    <!-- Authentication -->
+    <string name="login_title">Prijava</string>
+    <string name="register_title">Registracija</string>
+    <string name="email">Email adresa</string>
+    <string name="password">Lozinka</string>
+    <string name="confirm_password">Potvrdite lozinku</string>
+    <string name="username">Korisničko ime</string>
+    <string name="forgot_password">Zaboravili ste lozinku?</string>
+    <string name="login_button">Prijavite se</string>
+    <string name="register_button">Registrujte se</string>
+    <string name="already_have_account">Već imate nalog? Prijavite se</string>
+    <string name="dont_have_account">Nemate nalog? Registrujte se</string>
+
+    <!-- Profile -->
+    <string name="profile">Profil</string>
+    <string name="statistics">Statistike</string>
+    <string name="levels">Nivoi</string>
+    <string name="equipment">Oprema</string>
+    <string name="friends">Prijatelji</string>
+    <string name="edit_profile">Uredi profil</string>
+    <string name="change_password">Promeni lozinku</string>
+    <string name="qr_code">QR Kod</string>
+    <string name="show_qr_code">Pritisnite za prikaz QR koda</string>
+    <string name="share_qr_code">Podelite ovaj QR kod sa prijateljima</string>
+
+    <!-- Game elements -->
+    <string name="level_format">Nivo %d</string>
+    <string name="xp_format">%d XP</string>
+    <string name="pp_format">%d PP</string>
+    <string name="coins_format">%d novčića</string>
+    <string name="experience">Iskustvo</string>
+    <string name="power">Snaga</string>
+    <string name="coins">Novčići</string>
+    <string name="badges">Bedževi</string>
+    <string name="active_days">Aktivni dani</string>
+    <string name="completed_tasks">Završeni zadaci</string>
+    <string name="total_tasks">Ukupno zadataka</string>
+    <string name="longest_streak">Najduži niz</string>
+
+    <!-- Navigation -->
+    <string name="settings">Podešavanja</string>
+    <string name="logout">Odjavi se</string>
+
+    <!-- Common -->
+    <string name="loading">Učitavanje...</string>
+    <string name="error">Greška</string>
+    <string name="success">Uspešno</string>
+    <string name="cancel">Otkaži</string>
+    <string name="ok">U redu</string>
+    <string name="save">Sačuvaj</string>
+    <string name="delete">Obriši</string>
+    <string name="edit">Uredi</string>
+    <string name="back">Nazad</string>
+    <string name="next">Sledeće</string>
+    <string name="finish">Završi</string>
+    <string name="coming_soon">Uskoro dostupno</string>
+    <string name="feature_coming_soon">Ova funkcionalnost će biti implementirana u sledećoj verziji.</string>
 </resources>
