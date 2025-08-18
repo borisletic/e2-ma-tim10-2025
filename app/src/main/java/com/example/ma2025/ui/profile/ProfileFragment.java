@@ -12,6 +12,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
+
+import com.example.ma2025.ui.equipment.adapter.EquipmentAdapter;
 import com.google.firebase.auth.FirebaseUser;
 import com.example.ma2025.MainActivity;
 import com.example.ma2025.R;
@@ -21,10 +23,8 @@ import com.example.ma2025.data.preferences.PreferencesManager;
 import com.example.ma2025.databinding.FragmentProfileBinding;
 import com.example.ma2025.ui.dialogs.ChangePasswordDialog;
 import com.example.ma2025.utils.Constants;
-import com.example.ma2025.utils.EquipmentAdapter;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
@@ -32,10 +32,7 @@ import com.journeyapps.barcodescanner.BarcodeEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import com.example.ma2025.utils.EquipmentManager;
-import com.example.ma2025.data.models.Equipment;
-import com.example.ma2025.utils.EquipmentManager;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
-import androidx.recyclerview.widget.LinearLayoutManager;
+import com.example.ma2025.ui.equipment.adapter.EquipmentAdapter;
 
 public class ProfileFragment extends Fragment {
 
@@ -400,7 +397,7 @@ public class ProfileFragment extends Fragment {
                     binding.rvEquipment.setVisibility(View.VISIBLE);
 
                     // Create adapter for active equipment (read-only mode)
-                    EquipmentAdapter adapter = new EquipmentAdapter((Context) activeEquipment, null);
+                    EquipmentAdapter adapter = new EquipmentAdapter(activeEquipment, null);
                     binding.rvEquipment.setLayoutManager(
                             new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false)
                     );

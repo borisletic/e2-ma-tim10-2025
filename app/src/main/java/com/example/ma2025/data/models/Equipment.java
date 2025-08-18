@@ -28,6 +28,22 @@ public class Equipment {
         this.isPermanent = false;
     }
 
+    // U Equipment.java dodajte ovaj konstruktor:
+    public Equipment(Equipment other) {
+        this.name = other.name;
+        this.description = other.description;
+        this.type = other.type;
+        this.subType = other.subType;
+        this.effectValue = other.effectValue;
+        this.effectType = other.effectType;
+        this.price = other.price;
+        this.isPermanent = other.isPermanent;
+        this.iconName = other.iconName;
+        this.usesRemaining = other.usesRemaining;
+        this.isActive = false; // Nova oprema nije aktivna
+        this.purchaseTime = System.currentTimeMillis();
+    }
+
     public Equipment(String name, String description, int type, int subType,
                      double effectValue, String effectType, int price, boolean isPermanent) {
         this();
