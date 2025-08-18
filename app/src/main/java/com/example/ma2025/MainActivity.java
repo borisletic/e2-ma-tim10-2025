@@ -296,6 +296,23 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void navigateToEquipment() {
+        try {
+            // Switch to equipment tab
+            binding.bottomNavigation.setSelectedItemId(R.id.nav_equipment);
+
+            // Load equipment fragment
+            Fragment fragment = new EquipmentFragment();
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.fragment_container, fragment)
+                    .commit();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error navigating to equipment", e);
+        }
+    }
+
     private void completeLogout() {
         try {
             // Sign out from Firebase

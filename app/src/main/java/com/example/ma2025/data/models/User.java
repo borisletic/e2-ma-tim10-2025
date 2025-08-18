@@ -1,6 +1,8 @@
 // Fixed User.java - Added null safety and better error handling
 package com.example.ma2025.data.models;
 
+import com.example.ma2025.utils.EquipmentManager;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -321,5 +323,44 @@ public class User {
         copy.setLongestStreak(this.getLongestStreak());
         copy.setCurrentStreak(this.getCurrentStreak());
         return copy;
+    }
+
+    // Add these methods to User.java for equipment integration:
+
+    /**
+     * Calculate effective PP including equipment bonuses
+     */
+    public int getEffectivePp(List<Equipment> equipment) {
+        if (equipment == null || equipment.isEmpty()) {
+            return pp;
+        }
+        return EquipmentManager.calculateEffectivePp(this, equipment);
+    }
+
+    /**
+     * Add coins with potential equipment bonus
+     */
+    public void addCoinsWithBonus(int baseCoins, List<Equipment> equipment) {
+        double coinBonus = EquipmentManager.calculateCoinBonus(equipment);
+        int totalCoins = (int) (baseCoins * (1.0 + coinBonus));
+        this.coins += totalCoins;
+    }
+
+    /**
+     * Check if user can afford equipment
+     */
+    public boolean canAfford(int price) {
+        return coins >= price;
+    }
+
+    /**
+     * Purchase equipment (deduct coins)
+     */
+    public boolean purchaseEquipment(int price) {
+        if (canAfford(price)) {
+            coins -= price;
+            return true;
+        }
+        return false;
     }
 }
