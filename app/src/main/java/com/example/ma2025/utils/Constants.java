@@ -4,17 +4,22 @@ public class Constants {
 
     // Firebase Collections
     public static final String COLLECTION_USERS = "users";
+    public static final String COLLECTION_TASKS = "tasks";
+    public static final String COLLECTION_CATEGORIES = "categories";
     public static final String COLLECTION_EQUIPMENT = "equipment";
-    public static final String COLLECTION_FRIENDS = "friends";
     public static final String COLLECTION_ALLIANCES = "alliances";
-    public static final String COLLECTION_MISSIONS = "special_missions";
-    public static final String COLLECTION_MESSAGES = "alliance_messages";
+    public static final String COLLECTION_MESSAGES = "messages";
+    public static final String COLLECTION_BOSSES = "bosses";
+    public static final String COLLECTION_MISSIONS = "missions";
 
     // SharedPreferences
-    public static final String PREFS_NAME = "MA2025_PREFS";
-    public static final String PREF_USER_ID = "user_id";
+    public static final String PREFS_NAME = "MA2025_Prefs";
     public static final String PREF_IS_LOGGED_IN = "is_logged_in";
+    public static final String PREF_USER_ID = "user_id";
     public static final String PREF_USER_EMAIL = "user_email";
+    public static final String PREF_FIRST_LAUNCH = "first_launch";
+    public static final String PREF_NOTIFICATIONS_ENABLED = "notifications_enabled";
+    public static final String PREF_SOUND_ENABLED = "sound_enabled";
     public static final String PREF_LAST_LOGIN = "last_login";
 
     // Avatar options
@@ -22,66 +27,80 @@ public class Constants {
             "avatar_1", "avatar_2", "avatar_3", "avatar_4", "avatar_5"
     };
 
-    // XP Values
+    // Game Logic Constants
+    public static final int BASE_XP_FOR_LEVEL_1 = 200;
+    public static final int BASE_PP_FOR_LEVEL_1 = 40;
+    public static final int BASE_BOSS_HP = 200;
+    public static final int BASE_BOSS_REWARD = 200;
+    public static final double BOSS_REWARD_INCREASE = 1.2;
+
+    // Task Difficulty XP Values
     public static final int XP_VERY_EASY = 1;
     public static final int XP_EASY = 3;
     public static final int XP_HARD = 7;
     public static final int XP_EXTREME = 20;
 
+    // Task Importance XP Values
     public static final int XP_NORMAL = 1;
     public static final int XP_IMPORTANT = 3;
     public static final int XP_VERY_IMPORTANT = 10;
     public static final int XP_SPECIAL = 100;
 
-    // Daily Quotas
-    public static final int QUOTA_VERY_EASY_NORMAL = 5;
-    public static final int QUOTA_EASY_IMPORTANT = 5;
-    public static final int QUOTA_HARD_VERY_IMPORTANT = 2;
-    public static final int QUOTA_EXTREME = 1; // weekly
-    public static final int QUOTA_SPECIAL = 1; // monthly
+    // Task Status
+    public static final int TASK_STATUS_ACTIVE = 0;
+    public static final int TASK_STATUS_COMPLETED = 1;
+    public static final int TASK_STATUS_FAILED = 2;
+    public static final int TASK_STATUS_CANCELLED = 3;
+    public static final int TASK_STATUS_PAUSED = 4;
 
-    // Level progression
-    public static final int BASE_XP_FOR_LEVEL_1 = 200;
-    public static final int BASE_PP_FOR_LEVEL_1 = 40;
+    // Task Quotas (daily limits)
+    public static final int DAILY_QUOTA_VERY_EASY_NORMAL = 5;
+    public static final int DAILY_QUOTA_EASY_IMPORTANT = 5;
+    public static final int DAILY_QUOTA_HARD_VERY_IMPORTANT = 2;
+    public static final int WEEKLY_QUOTA_EXTREME = 1;
+    public static final int MONTHLY_QUOTA_SPECIAL = 1;
 
-    // Boss HP
-    public static final int BASE_BOSS_HP = 200;
+    // Equipment Types
+    public static final int EQUIPMENT_TYPE_POTION = 1;
+    public static final int EQUIPMENT_TYPE_CLOTHING = 2;
+    public static final int EQUIPMENT_TYPE_WEAPON = 3;
 
-    // Equipment prices (percentage of boss reward)
-    public static final double POTION_TEMP_20_PRICE = 0.5;
-    public static final double POTION_TEMP_40_PRICE = 0.7;
-    public static final double POTION_PERM_5_PRICE = 2.0;
-    public static final double POTION_PERM_10_PRICE = 10.0;
+    // Equipment Effects
+    public static final String EFFECT_PP_BOOST = "pp_boost";
+    public static final String EFFECT_XP_BOOST = "xp_boost";
+    public static final String EFFECT_COIN_BOOST = "coin_boost";
+    public static final String EFFECT_ATTACK_BOOST = "attack_boost";
 
-    public static final double CLOTHING_GLOVES_PRICE = 0.6;
-    public static final double CLOTHING_SHIELD_PRICE = 0.6;
-    public static final double CLOTHING_BOOTS_PRICE = 0.8;
+    public static final int EQUIPMENT_DROP_CHANCE = 25; // 25% chance
+    public static final int CLOTHING_DROP_CHANCE = 15;  // 15% chance
 
-    public static final double WEAPON_UPGRADE_PRICE = 0.6;
+    // Level Titles
+    public static final String[] LEVEL_TITLES = {
+            "Novajlija",        // Level 0
+            "Početnik",         // Level 1
+            "Istraživač",       // Level 2
+            "Ratnik",           // Level 3
+            "Veteran",          // Level 4
+            "Majstor",          // Level 5
+            "Ekspert",          // Level 6
+            "Šampion",          // Level 7
+            "Legenda",          // Level 8
+            "Mitska Legenda",   // Level 9
+            "Besmrtni"          // Level 10+
+    };
 
-    // Boss rewards
-    public static final int BASE_BOSS_REWARD = 200;
-    public static final double BOSS_REWARD_INCREASE = 1.2; // 20% increase per level
+    // Boss Battle
+    public static final int BOSS_BASE_DAMAGE = 10;
+    public static final int BOSS_CRITICAL_CHANCE = 15; // Percentage
+    public static final double BOSS_CRITICAL_MULTIPLIER = 1.5;
 
-    // Equipment drop chances
-    public static final int EQUIPMENT_DROP_CHANCE = 20; // 20%
-    public static final int CLOTHING_DROP_CHANCE = 95; // 95% clothing, 5% weapon
+    // Alliance/Mission
+    public static final int ALLIANCE_MIN_MEMBERS = 2;
+    public static final int ALLIANCE_MAX_MEMBERS = 10;
+    public static final int MISSION_DURATION_DAYS = 7;
+    public static final int MISSION_BASE_HP_PER_MEMBER = 100;
 
-    // Battle settings
-    public static final int MAX_ATTACKS_PER_BOSS = 5;
-    public static final int MIN_BOSS_HP_FOR_PARTIAL_REWARD = 50; // 50%
-
-    // Special mission settings
-    public static final int MISSION_DURATION_DAYS = 14;
-    public static final int BOSS_HP_PER_MEMBER = 100;
-
-    // Mission task limits
-    public static final int MISSION_MAX_STORE_VISITS = 5;
-    public static final int MISSION_MAX_SUCCESSFUL_ATTACKS = 10;
-    public static final int MISSION_MAX_EASY_TASKS = 10;
-    public static final int MISSION_MAX_HARD_TASKS = 6;
-
-    // Mission damage values
+    // Mission Damage Values
     public static final int MISSION_DAMAGE_STORE_VISIT = 2;
     public static final int MISSION_DAMAGE_SUCCESSFUL_ATTACK = 2;
     public static final int MISSION_DAMAGE_EASY_TASK = 1;
@@ -106,11 +125,14 @@ public class Constants {
     public static final String EXTRA_ALLIANCE_ID = "extra_alliance_id";
     public static final String EXTRA_MISSION_ID = "extra_mission_id";
     public static final String EXTRA_FRIEND_ID = "extra_friend_id";
+    public static final String EXTRA_LEVEL = "extra_level";
+    public static final String EXTRA_XP_GAINED = "extra_xp_gained";
 
     // Notification channels
     public static final String NOTIFICATION_CHANNEL_GENERAL = "general_notifications";
     public static final String NOTIFICATION_CHANNEL_MESSAGES = "message_notifications";
     public static final String NOTIFICATION_CHANNEL_ALLIANCES = "alliance_notifications";
+    public static final String NOTIFICATION_CHANNEL_LEVEL_UP = "level_up_notifications";
 
     // Error messages
     public static final String ERROR_NETWORK = "Greška u mreži. Pokušajte ponovo.";
@@ -118,15 +140,37 @@ public class Constants {
     public static final String ERROR_WEAK_PASSWORD = "Lozinka mora imati najmanje 6 karaktera.";
     public static final String ERROR_PASSWORDS_DONT_MATCH = "Lozinke se ne poklapaju.";
     public static final String ERROR_GENERAL = "Došlo je do greške. Pokušajte ponovo.";
+    public static final String ERROR_INSUFFICIENT_XP = "Nedovoljno XP za napredovanje.";
+    public static final String ERROR_INSUFFICIENT_COINS = "Nedovoljno novčića.";
 
     // Success messages
     public static final String SUCCESS_REGISTRATION = "Registracija uspešna! Proverite email za aktivaciju.";
     public static final String SUCCESS_LOGIN = "Uspešna prijava!";
     public static final String SUCCESS_LOGOUT = "Uspešna odjava!";
     public static final String SUCCESS_PROFILE_UPDATE = "Profil uspešno ažuriran!";
+    public static final String SUCCESS_LEVEL_UP = "Čestitamo! Napredovali ste na viši nivo!";
+    public static final String SUCCESS_TASK_COMPLETED = "Zadatak uspešno završen!";
+    public static final String SUCCESS_EQUIPMENT_PURCHASED = "Oprema uspešno kupljena!";
 
     // Validation
     public static final int MIN_PASSWORD_LENGTH = 6;
     public static final int MIN_USERNAME_LENGTH = 3;
     public static final int MAX_USERNAME_LENGTH = 20;
+    public static final int MIN_TASK_TITLE_LENGTH = 3;
+    public static final int MAX_TASK_TITLE_LENGTH = 50;
+    public static final int MAX_TASK_DESCRIPTION_LENGTH = 200;
+
+    // Animation durations (milliseconds)
+    public static final int ANIMATION_DURATION_SHORT = 300;
+    public static final int ANIMATION_DURATION_MEDIUM = 600;
+    public static final int ANIMATION_DURATION_LONG = 1000;
+
+    // Cache durations (milliseconds)
+    public static final long CACHE_DURATION_USER_DATA = 5 * 60 * 1000; // 5 minutes
+    public static final long CACHE_DURATION_TASKS = 2 * 60 * 1000; // 2 minutes
+    public static final long CACHE_DURATION_CATEGORIES = 10 * 60 * 1000; // 10 minutes
+
+    // Network timeouts (milliseconds)
+    public static final int NETWORK_TIMEOUT_CONNECTION = 10000; // 10 seconds
+    public static final int NETWORK_TIMEOUT_READ = 15000; // 15 seconds
 }
