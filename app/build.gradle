@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.google.services)  // Koristiti alias umesto direktnog ID-ja
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -29,12 +29,12 @@ android {
     }
 
     buildFeatures {
-        viewBinding true  // Omogućiti View Binding
+        viewBinding true
     }
 }
 
 dependencies {
-    // Existing dependencies
+    // Core Android dependencies
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity
@@ -70,6 +70,17 @@ dependencies {
     implementation libs.glide
     implementation libs.preference
 
-    // MPAndroidChart (mora direktno jer nije u Maven Central)
+    // Room Database (SQLite)
+    implementation libs.room.runtime
+    annotationProcessor libs.room.compiler
+    implementation libs.room.ktx
+
+    // Work Manager for background sync
+    implementation libs.work.runtime
+
+    // Gson for JSON parsing
+    implementation libs.gson
+
+    // MPAndroidChart (manual dependency)
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 }
