@@ -73,6 +73,23 @@ public class Constants {
 
     public static final int EQUIPMENT_DROP_CHANCE = 25; // 25% chance
     public static final int CLOTHING_DROP_CHANCE = 15;  // 15% chance
+    // Equipment Drop Chances
+
+    // Equipment price percentages (based on boss reward)
+    public static final int POTION_TEMP_20_PRICE = 50;   // 50% of boss reward
+    public static final int POTION_TEMP_40_PRICE = 70;   // 70% of boss reward
+    public static final int POTION_PERM_5_PRICE = 200;   // 200% of boss reward
+    public static final int POTION_PERM_10_PRICE = 1000; // 1000% of boss reward
+    public static final int CLOTHING_PRICE = 60;         // 60% of boss reward (gloves, shield)
+    public static final int BOOTS_PRICE = 80;            // 80% of boss reward (boots)
+    public static final int WEAPON_UPGRADE_PRICE = 60;   // 60% of boss reward for weapon upgrades
+
+    // Equipment effect types (additional to existing ones)
+    public static final String EFFECT_EXTRA_ATTACK = "extra_attack";
+
+    // Equipment durability
+    public static final int CLOTHING_USES = 2;  // Clothing lasts 2 battles
+    public static final int POTION_SINGLE_USE = 1;  // Single-use potions
 
     // Level Titles
     public static final String[] LEVEL_TITLES = {

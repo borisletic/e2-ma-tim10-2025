@@ -1,5 +1,6 @@
 package com.example.ma2025.ui.profile;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.util.Log;
@@ -11,6 +12,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import com.google.firebase.auth.FirebaseUser;
+import com.example.ma2025.MainActivity;
 import com.example.ma2025.R;
 import com.example.ma2025.data.models.User;
 import com.example.ma2025.data.models.Equipment;
@@ -22,11 +25,17 @@ import com.example.ma2025.utils.EquipmentAdapter;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import com.example.ma2025.utils.EquipmentManager;
+import com.example.ma2025.data.models.Equipment;
+import com.example.ma2025.utils.EquipmentManager;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 public class ProfileFragment extends Fragment {
 
@@ -93,6 +102,19 @@ public class ProfileFragment extends Fragment {
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "Error toggling QR code", e);
+                }
+            });
+            binding.btnGoToEquipment.setOnClickListener(v -> {
+                try {
+                    // Navigate to Equipment tab
+                    if (getActivity() instanceof MainActivity) {
+                        MainActivity mainActivity = (MainActivity) getActivity();
+                        // Assuming you have a method to switch to equipment tab
+                        mainActivity.navigateToEquipment(); // You'll need to implement this
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error navigating to equipment", e);
+                    Toast.makeText(getContext(), "Greška pri navigaciji", Toast.LENGTH_SHORT).show();
                 }
             });
         } catch (Exception e) {
@@ -321,8 +343,31 @@ public class ProfileFragment extends Fragment {
 
     private void loadUserEquipment() {
         try {
-            // For now, show placeholder since Equipment collection might not exist yet
-            displayEquipment(new ArrayList<>());
+            FirebaseUser firebaseUser = mAuth.getCurrentUser();
+            if (firebaseUser == null) {
+                displayEquipment(new ArrayList<>());
+                return;
+            }
+
+            String userId = firebaseUser.getUid();
+
+            db.collection(Constants.COLLECTION_EQUIPMENT)
+                    .whereEqualTo("userId", userId)
+                    .get()
+                    .addOnSuccessListener(queryDocumentSnapshots -> {
+                        List<Equipment> userEquipment = new ArrayList<>();
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            Equipment equipment = document.toObject(Equipment.class);
+                            equipment.setId(document.getId());
+                            userEquipment.add(equipment);
+                        }
+
+                        displayEquipment(userEquipment);
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error loading user equipment", e);
+                        displayEquipment(new ArrayList<>());
+                    });
 
         } catch (Exception e) {
             Log.e(TAG, "Error loading user equipment", e);
@@ -334,23 +379,57 @@ public class ProfileFragment extends Fragment {
         try {
             if (binding == null) return;
 
-            // Check if the views exist in the layout
-            if (binding.tvNoEquipment != null && binding.rvEquipment != null) {
-                if (equipmentList == null || equipmentList.isEmpty()) {
+            // Get active equipment only
+            List<Equipment> activeEquipment = EquipmentManager.getActiveEquipment(equipmentList);
+
+            if (activeEquipment.isEmpty()) {
+                // Show "no equipment" message
+                if (binding.tvNoEquipment != null) {
                     binding.tvNoEquipment.setVisibility(View.VISIBLE);
+                    binding.tvNoEquipment.setText("Nemate aktivnu opremu");
+                }
+                if (binding.rvEquipment != null) {
                     binding.rvEquipment.setVisibility(View.GONE);
-                } else {
+                }
+            } else {
+                // Show equipment list
+                if (binding.tvNoEquipment != null) {
                     binding.tvNoEquipment.setVisibility(View.GONE);
+                }
+                if (binding.rvEquipment != null) {
                     binding.rvEquipment.setVisibility(View.VISIBLE);
 
-                    EquipmentAdapter adapter = new EquipmentAdapter(getContext(), equipmentList);
-                    binding.rvEquipment.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
+                    // Create adapter for active equipment (read-only mode)
+                    EquipmentAdapter adapter = new EquipmentAdapter((Context) activeEquipment, null);
+                    binding.rvEquipment.setLayoutManager(
+                            new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false)
+                    );
                     binding.rvEquipment.setAdapter(adapter);
                 }
             }
 
+            // Update equipment bonus text if view exists
+            updateEquipmentBonus(equipmentList);
+
         } catch (Exception e) {
             Log.e(TAG, "Error displaying equipment", e);
+        }
+    }
+
+    private void updateEquipmentBonus(List<Equipment> equipmentList) {
+        try {
+            String bonusText = EquipmentManager.getEquipmentSummary(equipmentList);
+
+            // If you have a TextView for equipment bonus in your layout:
+            if (binding.tvEquipmentBonus != null) {
+                binding.tvEquipmentBonus.setText(bonusText);
+                binding.tvEquipmentBonus.setVisibility(
+                        EquipmentManager.hasActiveEquipment(equipmentList) ? View.VISIBLE : View.GONE
+                );
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating equipment bonus", e);
         }
     }
 

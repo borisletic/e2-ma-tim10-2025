@@ -395,7 +395,7 @@
 
         </androidx.cardview.widget.CardView>
 
-        <!-- Equipment Card -->
+        <!-- Equipment Section -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -412,28 +412,53 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
                     android:text="Aktivna oprema"
                     android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
 
+                <!-- Equipment Bonus Summary -->
+                <TextView
+                    android:id="@+id/tv_equipment_bonus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PP +20%, Napad +10%"
+                    android:textColor="@color/success_color"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="8dp"
+                    android:visibility="gone" />
+
+                <!-- Equipment RecyclerView -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_equipment"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                    android:nestedScrollingEnabled="false" />
 
+                <!-- No Equipment Message -->
                 <TextView
                     android:id="@+id/tv_no_equipment"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
                     android:text="Nemate aktivnu opremu"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
+                    android:gravity="center"
+                    android:padding="16dp"
+                    android:background="@drawable/dashed_border"
                     android:visibility="visible" />
+
+                <!-- Go to Equipment Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_go_to_equipment"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Upravljaj opremom"
+                    android:textSize="14sp" />
 
             </LinearLayout>
 

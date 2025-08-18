@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.ma2025.R;
 import com.example.ma2025.data.models.Equipment;
+import com.example.ma2025.utils.Constants;
 import java.util.List;
 
 public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.EquipmentViewHolder> {
@@ -64,31 +65,71 @@ public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.Equi
         public void bind(Equipment equipment) {
             if (equipment == null) return;
 
+            // Koristi postojeće metode iz novog Equipment modela
             tvEquipmentName.setText(equipment.getName());
-            tvEquipmentEffect.setText("+" + equipment.getEffect() + "%");
 
-            // Set icon based on equipment type
+            // Prikaži efekat na osnovu effectValue
+            tvEquipmentEffect.setText("+" + (int)(equipment.getEffectValue() * 100) + "%");
+
+            // Postavi ikonu na osnovu tipa opreme
             int iconRes = getEquipmentIcon(equipment);
             ivEquipmentIcon.setImageResource(iconRes);
 
-            // Show active indicator
+            // Prikaži indikator aktivnosti
             activeIndicator.setVisibility(equipment.isActive() ? View.VISIBLE : View.GONE);
 
-            // Show durability for clothing or level for weapons
-            if (equipment.getType() == Equipment.EquipmentType.CLOTHING) {
+            // Prikaži status na osnovu tipa opreme
+            if (equipment.getType() == Constants.EQUIPMENT_TYPE_CLOTHING) {
                 tvEquipmentDurability.setVisibility(View.VISIBLE);
-                tvEquipmentDurability.setText("Trajanje: " + equipment.getDurability());
-            } else if (equipment.getType() == Equipment.EquipmentType.WEAPON) {
+                tvEquipmentDurability.setText("Trajanje: " + equipment.getUsesRemaining());
+            } else if (equipment.getType() == Constants.EQUIPMENT_TYPE_WEAPON) {
                 tvEquipmentDurability.setVisibility(View.VISIBLE);
-                tvEquipmentDurability.setText("Nivo: " + equipment.getLevel());
+                tvEquipmentDurability.setText("Trajno");
+            } else if (equipment.getType() == Constants.EQUIPMENT_TYPE_POTION) {
+                tvEquipmentDurability.setVisibility(View.VISIBLE);
+                if (equipment.isPermanent()) {
+                    tvEquipmentDurability.setText("Trajno");
+                } else {
+                    tvEquipmentDurability.setText("Jednokratno");
+                }
             } else {
                 tvEquipmentDurability.setVisibility(View.GONE);
             }
         }
 
         private int getEquipmentIcon(Equipment equipment) {
-            // Use generic equipment icon for now - you can add specific icons later
-            return R.drawable.ic_equipment;
+            // Vrati ikonu na osnovu iconName ili tipa opreme
+            if (equipment.getIconName() != null) {
+                switch (equipment.getIconName()) {
+                    case "potion_permanent":
+                    case "potion_temporary":
+                        return R.drawable.ic_equipment; // Možeš zameniti sa specifičnom ikonom za napitke
+                    case "gloves":
+                        return R.drawable.ic_equipment; // Možeš zameniti sa ikonom rukavica
+                    case "shield":
+                        return R.drawable.ic_equipment; // Možeš zameniti sa ikonom štita
+                    case "boots":
+                        return R.drawable.ic_equipment; // Možeš zameniti sa ikonom čizama
+                    case "sword":
+                        return R.drawable.ic_equipment; // Možeš zameniti sa ikonom mača
+                    case "bow":
+                        return R.drawable.ic_equipment; // Možeš zameniti sa ikonom luka
+                    default:
+                        return R.drawable.ic_equipment;
+                }
+            }
+
+            // Fallback na osnovu tipa opreme
+            switch (equipment.getType()) {
+                case Constants.EQUIPMENT_TYPE_POTION:
+                    return R.drawable.ic_equipment; // Ikona za napitke
+                case Constants.EQUIPMENT_TYPE_CLOTHING:
+                    return R.drawable.ic_equipment; // Ikona za odeću
+                case Constants.EQUIPMENT_TYPE_WEAPON:
+                    return R.drawable.ic_equipment; // Ikona za oružje
+                default:
+                    return R.drawable.ic_equipment;
+            }
         }
     }
 }
