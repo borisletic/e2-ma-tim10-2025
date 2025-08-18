@@ -67,4 +67,15 @@
     <color name="transparent">#00000000</color>
     <color name="semi_transparent_black">#80000000</color>
     <color name="semi_transparent_white">#80FFFFFF</color>
+
+    <!-- Background Colors -->
+    <color name="background_color">#F5F5F5</color>
+    <color name="surface_color">#FFFFFF</color>
+    <color name="card_background">#FFFFFF</color>
+
+    <!-- Level Status Colors -->
+    <color name="level_current">#6200EA</color>
+    <color name="level_completed">#4CAF50</color>
+    <color name="level_locked">#BDBDBD</color>
+
 </resources>
