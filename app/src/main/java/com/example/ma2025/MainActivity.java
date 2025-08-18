@@ -1,4 +1,3 @@
-// Updated MainActivity.java
 package com.example.ma2025;
 
 import android.content.Intent;
@@ -37,67 +36,133 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
 
-        // Initialize Firebase
-        FirebaseApp.initializeApp(this);
-        mAuth = FirebaseAuth.getInstance();
-        db = FirebaseFirestore.getInstance();
-        preferencesManager = new PreferencesManager(this);
+        try {
+            binding = ActivityMainBinding.inflate(getLayoutInflater());
+            setContentView(binding.getRoot());
 
-        // Initialize Database Manager
-        databaseManager = DatabaseManager.getInstance(this);
+            // Initialize Firebase safely
+            initializeFirebase();
 
-        Log.d(TAG, "Firebase inicijalizovan uspešno!");
+            // Initialize preferences
+            preferencesManager = new PreferencesManager(this);
 
-        // Check if user is logged in
-        if (!preferencesManager.isLoggedIn() || mAuth.getCurrentUser() == null) {
-            redirectToLogin();
-            return;
+            Log.d(TAG, "MainActivity initialized successfully");
+
+            // Check if user is logged in
+            if (!isUserLoggedIn()) {
+                redirectToLogin();
+                return;
+            }
+
+            // Setup UI
+            setupUI();
+            setupBottomNavigation();
+
+            // Initialize database manager with error handling
+            initializeDatabaseManager();
+
+            // Load default fragment
+            if (savedInstanceState == null) {
+                loadFragment(new ProfileFragment());
+                binding.bottomNavigation.setSelectedItemId(R.id.nav_profile);
+            }
+
+            // Track app usage
+            preferencesManager.incrementAppOpens();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Critical error in MainActivity onCreate", e);
+            handleCriticalError(e);
         }
+    }
 
-        setupUI();
-        setupBottomNavigation();
+    private void initializeFirebase() {
+        try {
+            // Initialize Firebase
+            FirebaseApp.initializeApp(this);
+            mAuth = FirebaseAuth.getInstance();
+            db = FirebaseFirestore.getInstance();
 
-        // Initialize user data in local database
-        initializeUserDatabase();
+            Log.d(TAG, "Firebase initialized successfully");
 
-        // Load default fragment
-        if (savedInstanceState == null) {
-            loadFragment(new ProfileFragment());
-            binding.bottomNavigation.setSelectedItemId(R.id.nav_profile);
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing Firebase", e);
+            Toast.makeText(this, "Greška pri inicijalizaciji Firebase servisa", Toast.LENGTH_LONG).show();
         }
+    }
 
-        // Track app usage
-        preferencesManager.incrementAppOpens();
+    private boolean isUserLoggedIn() {
+        try {
+            boolean isLoggedInPrefs = preferencesManager.isLoggedIn();
+            boolean hasFirebaseUser = mAuth.getCurrentUser() != null;
+
+            Log.d(TAG, "User logged in (prefs): " + isLoggedInPrefs + ", Firebase user exists: " + hasFirebaseUser);
+
+            return isLoggedInPrefs && hasFirebaseUser;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking login status", e);
+            return false;
+        }
     }
 
     private void setupUI() {
-        setSupportActionBar(binding.toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("MA2025");
+        try {
+            setSupportActionBar(binding.toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setTitle("MA2025");
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up UI", e);
         }
     }
 
     private void setupBottomNavigation() {
-        binding.bottomNavigation.setOnItemSelectedListener(item -> {
-            Fragment selectedFragment = null;
+        try {
+            binding.bottomNavigation.setOnItemSelectedListener(item -> {
+                Fragment selectedFragment = null;
 
-            if (item.getItemId() == R.id.nav_profile) {
-                selectedFragment = new ProfileFragment();
-            } else if (item.getItemId() == R.id.nav_statistics) {
-                selectedFragment = new StatisticsFragment();
-            } else if (item.getItemId() == R.id.nav_levels) {
-                selectedFragment = new LevelsFragment();
-            } else if (item.getItemId() == R.id.nav_equipment) {
-                selectedFragment = new EquipmentFragment();
-            } else if (item.getItemId() == R.id.nav_friends) {
-                selectedFragment = new FriendsFragment();
-            }
+                try {
+                    if (item.getItemId() == R.id.nav_profile) {
+                        selectedFragment = new ProfileFragment();
+                    } else if (item.getItemId() == R.id.nav_statistics) {
+                        selectedFragment = new StatisticsFragment();
+                    } else if (item.getItemId() == R.id.nav_levels) {
+                        selectedFragment = new LevelsFragment();
+                    } else if (item.getItemId() == R.id.nav_equipment) {
+                        selectedFragment = new EquipmentFragment();
+                    } else if (item.getItemId() == R.id.nav_friends) {
+                        selectedFragment = new FriendsFragment();
+                    }
 
-            return loadFragment(selectedFragment);
-        });
+                    return loadFragment(selectedFragment);
+
+                } catch (Exception e) {
+                    Log.e(TAG, "Error in bottom navigation selection", e);
+                    Toast.makeText(MainActivity.this, "Greška pri učitavanju stranice", Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up bottom navigation", e);
+        }
+    }
+
+    private void initializeDatabaseManager() {
+        try {
+            // Initialize Database Manager
+            databaseManager = DatabaseManager.getInstance(this);
+
+            // Initialize user data in local database
+            initializeUserDatabase();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing database manager", e);
+            Toast.makeText(this, "Greška pri inicijalizaciji baze podataka", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void initializeUserDatabase() {
@@ -109,23 +174,26 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(TAG, "Initializing local database for user: " + userId);
 
-        databaseManager.initializeUserData(userId, new DatabaseManager.OnInitializationCallback() {
-            @Override
-            public void onSuccess(String message) {
-                Log.d(TAG, "Database initialization successful: " + message);
+        try {
+            databaseManager.initializeUserData(userId, new DatabaseManager.OnInitializationCallback() {
+                @Override
+                public void onSuccess(String message) {
+                    Log.d(TAG, "Database initialization successful: " + message);
+                    // Optionally sync with Firebase after initialization
+                    syncWithFirebase();
+                }
 
-                // Optionally sync with Firebase after initialization
-                syncWithFirebase();
-            }
+                @Override
+                public void onError(String error) {
+                    Log.e(TAG, "Database initialization failed: " + error);
+                    // Don't show error to user immediately, app should still work
+                    // Toast.makeText(MainActivity.this, "Greška pri inicijalizaciji podataka: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
 
-            @Override
-            public void onError(String error) {
-                Log.e(TAG, "Database initialization failed: " + error);
-                Toast.makeText(MainActivity.this,
-                        "Greška pri inicijalizaciji podataka: " + error,
-                        Toast.LENGTH_LONG).show();
-            }
-        });
+        } catch (Exception e) {
+            Log.e(TAG, "Error during database initialization", e);
+        }
     }
 
     private void syncWithFirebase() {
@@ -134,57 +202,76 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(TAG, "Starting Firebase sync for user: " + userId);
 
-        databaseManager.syncWithFirebase(userId, new DatabaseManager.OnSyncCallback() {
-            @Override
-            public void onSyncCompleted(String message) {
-                Log.d(TAG, "Firebase sync completed: " + message);
-                // Optionally show a subtle success indicator
-            }
+        try {
+            databaseManager.syncWithFirebase(userId, new DatabaseManager.OnSyncCallback() {
+                @Override
+                public void onSyncCompleted(String message) {
+                    Log.d(TAG, "Firebase sync completed: " + message);
+                }
 
-            @Override
-            public void onSyncFailed(String error) {
-                Log.w(TAG, "Firebase sync failed: " + error);
-                // Don't show error to user unless it's critical
-                // App should work offline with SQLite
-            }
-        });
+                @Override
+                public void onSyncFailed(String error) {
+                    Log.w(TAG, "Firebase sync failed: " + error);
+                    // App should work offline with SQLite, so don't show error
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error during Firebase sync", e);
+        }
     }
 
     private boolean loadFragment(Fragment fragment) {
-        if (fragment != null) {
-            getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.fragment_container, fragment)
-                    .commit();
-            return true;
+        try {
+            if (fragment != null) {
+                getSupportFragmentManager()
+                        .beginTransaction()
+                        .replace(R.id.fragment_container, fragment)
+                        .commit();
+                return true;
+            }
+            return false;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading fragment", e);
+            Toast.makeText(this, "Greška pri učitavanju stranice", Toast.LENGTH_SHORT).show();
+            return false;
         }
-        return false;
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main_menu, menu);
-        return true;
+        try {
+            getMenuInflater().inflate(R.menu.main_menu, menu);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error creating options menu", e);
+            return false;
+        }
     }
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == R.id.action_logout) {
-            logout();
-            return true;
-        } else if (item.getItemId() == R.id.action_settings) {
-            openSettings();
-            return true;
-        } else if (item.getItemId() == R.id.action_sync) {
-            // Now this will work with the updated menu
-            manualSync();
-            return true;
+        try {
+            if (item.getItemId() == R.id.action_logout) {
+                logout();
+                return true;
+            } else if (item.getItemId() == R.id.action_settings) {
+                openSettings();
+                return true;
+            } else if (item.getItemId() == R.id.action_sync) {
+                manualSync();
+                return true;
+            }
+            return super.onOptionsItemSelected(item);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error handling menu item selection", e);
+            return false;
         }
-        return super.onOptionsItemSelected(item);
     }
 
     private void openSettings() {
-        // TODO: Open settings activity
         Toast.makeText(this, "Podešavanja će biti dodana uskoro", Toast.LENGTH_SHORT).show();
     }
 
@@ -194,83 +281,139 @@ public class MainActivity extends AppCompatActivity {
 
         Toast.makeText(this, "Počinje sinhronizacija...", Toast.LENGTH_SHORT).show();
 
-        databaseManager.syncWithFirebase(userId, new DatabaseManager.OnSyncCallback() {
-            @Override
-            public void onSyncCompleted(String message) {
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "Sinhronizacija završena!", Toast.LENGTH_SHORT).show();
-                });
-            }
+        try {
+            databaseManager.syncWithFirebase(userId, new DatabaseManager.OnSyncCallback() {
+                @Override
+                public void onSyncCompleted(String message) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Sinhronizacija završena!", Toast.LENGTH_SHORT).show();
+                    });
+                }
 
-            @Override
-            public void onSyncFailed(String error) {
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "Sinhronizacija neuspešna: " + error, Toast.LENGTH_LONG).show();
-                });
-            }
-        });
+                @Override
+                public void onSyncFailed(String error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Sinhronizacija neuspešna: " + error, Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error during manual sync", e);
+            Toast.makeText(this, "Greška pri pokretanju sinhronizacije", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void logout() {
-        String userId = preferencesManager.getUserId();
+        try {
+            String userId = preferencesManager.getUserId();
 
-        if (userId != null) {
-            // Clear user data from local database
-            databaseManager.clearUserData(userId, new DatabaseManager.OnClearDataCallback() {
-                @Override
-                public void onDataCleared(String message) {
-                    Log.d(TAG, "Local user data cleared: " + message);
-                    completeLogout();
-                }
+            if (userId != null && databaseManager != null) {
+                // Clear user data from local database
+                databaseManager.clearUserData(userId, new DatabaseManager.OnClearDataCallback() {
+                    @Override
+                    public void onDataCleared(String message) {
+                        Log.d(TAG, "Local user data cleared: " + message);
+                        completeLogout();
+                    }
 
-                @Override
-                public void onError(String error) {
-                    Log.e(TAG, "Error clearing local data: " + error);
-                    // Still proceed with logout even if local cleanup fails
-                    completeLogout();
-                }
-            });
-        } else {
+                    @Override
+                    public void onError(String error) {
+                        Log.e(TAG, "Error clearing local data: " + error);
+                        // Still proceed with logout even if local cleanup fails
+                        completeLogout();
+                    }
+                });
+            } else {
+                completeLogout();
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error during logout", e);
+            // Force logout even if there's an error
             completeLogout();
         }
     }
 
     private void completeLogout() {
-        // Sign out from Firebase
-        mAuth.signOut();
+        try {
+            // Sign out from Firebase
+            if (mAuth != null) {
+                mAuth.signOut();
+            }
 
-        // Clear user data from preferences
-        preferencesManager.clearUserData();
+            // Clear user data from preferences
+            preferencesManager.clearUserData();
 
-        // Show success message
-        Toast.makeText(this, Constants.SUCCESS_LOGOUT, Toast.LENGTH_SHORT).show();
+            // Show success message
+            Toast.makeText(this, Constants.SUCCESS_LOGOUT, Toast.LENGTH_SHORT).show();
 
-        // Redirect to login
-        redirectToLogin();
+            // Redirect to login
+            redirectToLogin();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error completing logout", e);
+            redirectToLogin(); // Force redirect even if there's an error
+        }
     }
 
     private void redirectToLogin() {
-        Intent intent = new Intent(this, LoginActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
+        try {
+            Intent intent = new Intent(this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error redirecting to login", e);
+            // Force close app if we can't redirect
+            finishAffinity();
+        }
+    }
+
+    private void handleCriticalError(Exception e) {
+        try {
+            Toast.makeText(this, "Kritična greška u aplikaciji. Aplikacija će se zatvoriti.", Toast.LENGTH_LONG).show();
+
+            // Try to logout user
+            if (preferencesManager != null) {
+                preferencesManager.clearUserData();
+            }
+
+            // Redirect to login or close app
+            redirectToLogin();
+
+        } catch (Exception ex) {
+            Log.e(TAG, "Error handling critical error", ex);
+            finishAffinity(); // Force close app
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        // Check if user is still authenticated
-        if (mAuth.getCurrentUser() == null || !preferencesManager.isLoggedIn()) {
-            redirectToLogin();
+        try {
+            // Check if user is still authenticated
+            if (!isUserLoggedIn()) {
+                Log.d(TAG, "User not authenticated in onResume, redirecting to login");
+                redirectToLogin();
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onResume", e);
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (binding != null) {
-            binding = null;
+        try {
+            if (binding != null) {
+                binding = null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onDestroy", e);
         }
     }
 }
