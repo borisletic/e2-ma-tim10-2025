@@ -11,6 +11,7 @@ import com.example.ma2025.data.models.User;
 import com.example.ma2025.databinding.ActivityRegisterBinding;
 import com.example.ma2025.utils.Constants;
 import com.example.ma2025.utils.ValidationUtils;
+import com.example.ma2025.utils.EmailActivationChecker;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -21,6 +22,7 @@ public class RegisterActivity extends AppCompatActivity {
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
     private String selectedAvatar = Constants.AVATAR_OPTIONS[0];
+    private EmailActivationChecker activationChecker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +32,7 @@ public class RegisterActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
+        activationChecker = new EmailActivationChecker();
 
         setupUI();
         setupClickListeners();
@@ -137,7 +140,7 @@ public class RegisterActivity extends AppCompatActivity {
         user.sendEmailVerification()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        Toast.makeText(this, Constants.SUCCESS_REGISTRATION, Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Email verifikacija poslana!", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(this, "Greška pri slanju email-a za aktivaciju",
                                 Toast.LENGTH_SHORT).show();
@@ -154,8 +157,12 @@ public class RegisterActivity extends AppCompatActivity {
                 .addOnCompleteListener(task -> {
                     showLoading(false);
                     if (task.isSuccessful()) {
+                        // Start activation timeout tracking (24 hours)
+                        activationChecker.startActivationTimeout(uid);
+
                         mAuth.signOut(); // Odjavi korisnika dok ne aktivira email
-                        Toast.makeText(this, "Registracija uspešna! Proverite email za aktivaciju.",
+                        Toast.makeText(this,
+                                "Registracija uspešna! Proverite email za aktivaciju. Link ističe za 24h.",
                                 Toast.LENGTH_LONG).show();
                         startActivity(new Intent(this, LoginActivity.class));
                         finish();
@@ -202,5 +209,59 @@ public class RegisterActivity extends AppCompatActivity {
         binding.etPassword.setEnabled(!show);
         binding.etConfirmPassword.setEnabled(!show);
         binding.spinnerAvatar.setEnabled(!show);
+    }
+
+    // Optional method to show activation status dialog
+    private void showActivationStatusDialog(String userId) {
+        activationChecker.checkActivationStatus(userId, new EmailActivationChecker.ActivationStatusCallback() {
+            @Override
+            public void onActivated() {
+                // Account is activated
+            }
+
+            @Override
+            public void onPending() {
+                activationChecker.getRemainingActivationTime(userId, remainingTimeMs -> {
+                    long hoursRemaining = remainingTimeMs / (1000 * 60 * 60);
+                    long minutesRemaining = (remainingTimeMs % (1000 * 60 * 60)) / (1000 * 60);
+
+                    String message = String.format(
+                            "Aktivacijski link ističe za %d sati i %d minuta.",
+                            hoursRemaining, minutesRemaining
+                    );
+
+                    runOnUiThread(() ->
+                            Toast.makeText(RegisterActivity.this, message, Toast.LENGTH_LONG).show()
+                    );
+                });
+            }
+
+            @Override
+            public void onExpired() {
+                runOnUiThread(() ->
+                        Toast.makeText(RegisterActivity.this,
+                                "Aktivacijski link je istekao. Molimo registrujte se ponovo.",
+                                Toast.LENGTH_LONG).show()
+                );
+            }
+
+            @Override
+            public void onNotFound() {
+                // Registration not found
+            }
+
+            @Override
+            public void onError(String error) {
+                // Handle error
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (activationChecker != null) {
+            activationChecker.shutdown();
+        }
     }
 }

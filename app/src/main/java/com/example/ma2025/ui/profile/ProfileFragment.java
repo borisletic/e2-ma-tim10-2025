@@ -1,3 +1,5 @@
+// Updated ProfileFragment.java - Add these imports and methods
+
 package com.example.ma2025.ui.profile;
 
 import android.graphics.Bitmap;
@@ -10,16 +12,23 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import com.example.ma2025.R;
 import com.example.ma2025.data.models.User;
+import com.example.ma2025.data.models.Equipment;
 import com.example.ma2025.data.preferences.PreferencesManager;
 import com.example.ma2025.databinding.FragmentProfileBinding;
+import com.example.ma2025.ui.dialogs.ChangePasswordDialog;
 import com.example.ma2025.utils.Constants;
+import com.example.ma2025.utils.EquipmentAdapter;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ProfileFragment extends Fragment {
 
@@ -55,7 +64,8 @@ public class ProfileFragment extends Fragment {
         });
 
         binding.btnChangePassword.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "Promena lozinke funkcionalnost će biti dodana uskoro", Toast.LENGTH_SHORT).show();
+            ChangePasswordDialog dialog = new ChangePasswordDialog();
+            dialog.show(getParentFragmentManager(), "change_password");
         });
 
         binding.cardQrCode.setOnClickListener(v -> {
@@ -90,6 +100,7 @@ public class ProfileFragment extends Fragment {
                             displayUserData(currentUser);
                             cacheUserData(currentUser);
                             generateQRCode(userId);
+                            loadUserEquipment();
                         }
                     } else {
                         Log.e(TAG, "User document does not exist");
@@ -151,6 +162,53 @@ public class ProfileFragment extends Fragment {
                 user.getPp(),
                 user.getCoins()
         );
+    }
+
+    private void loadUserEquipment() {
+        String userId = preferencesManager.getUserId();
+        if (userId == null) return;
+
+        // For now, show placeholder since Equipment collection might not exist yet
+        displayEquipment(new ArrayList<>());
+
+        // Uncomment this when Equipment collection is implemented
+        /*
+        db.collection(Constants.COLLECTION_EQUIPMENT)
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("isActive", true)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    List<Equipment> activeEquipment = new ArrayList<>();
+                    for (DocumentSnapshot doc : queryDocumentSnapshots) {
+                        Equipment equipment = doc.toObject(Equipment.class);
+                        if (equipment != null) {
+                            activeEquipment.add(equipment);
+                        }
+                    }
+                    displayEquipment(activeEquipment);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading equipment", e);
+                    displayEquipment(new ArrayList<>());
+                });
+        */
+    }
+
+    private void displayEquipment(List<Equipment> equipmentList) {
+        // Check if the views exist in the layout
+        if (binding.tvNoEquipment != null && binding.rvEquipment != null) {
+            if (equipmentList.isEmpty()) {
+                binding.tvNoEquipment.setVisibility(View.VISIBLE);
+                binding.rvEquipment.setVisibility(View.GONE);
+            } else {
+                binding.tvNoEquipment.setVisibility(View.GONE);
+                binding.rvEquipment.setVisibility(View.VISIBLE);
+
+                EquipmentAdapter adapter = new EquipmentAdapter(getContext(), equipmentList);
+                binding.rvEquipment.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
+                binding.rvEquipment.setAdapter(adapter);
+            }
+        }
     }
 
     private void generateQRCode(String userId) {
