@@ -256,51 +256,12 @@ public class MainActivity extends AppCompatActivity {
             if (item.getItemId() == R.id.action_logout) {
                 logout();
                 return true;
-            } else if (item.getItemId() == R.id.action_settings) {
-                openSettings();
-                return true;
-            } else if (item.getItemId() == R.id.action_sync) {
-                manualSync();
-                return true;
             }
             return super.onOptionsItemSelected(item);
 
         } catch (Exception e) {
             Log.e(TAG, "Error handling menu item selection", e);
             return false;
-        }
-    }
-
-    private void openSettings() {
-        Toast.makeText(this, "Podešavanja će biti dodana uskoro", Toast.LENGTH_SHORT).show();
-    }
-
-    private void manualSync() {
-        String userId = preferencesManager.getUserId();
-        if (userId == null) return;
-
-        Toast.makeText(this, "Počinje sinhronizacija...", Toast.LENGTH_SHORT).show();
-
-        try {
-            databaseManager.syncWithFirebase(userId, new DatabaseManager.OnSyncCallback() {
-                @Override
-                public void onSyncCompleted(String message) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this, "Sinhronizacija završena!", Toast.LENGTH_SHORT).show();
-                    });
-                }
-
-                @Override
-                public void onSyncFailed(String error) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this, "Sinhronizacija neuspešna: " + error, Toast.LENGTH_LONG).show();
-                    });
-                }
-            });
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error during manual sync", e);
-            Toast.makeText(this, "Greška pri pokretanju sinhronizacije", Toast.LENGTH_SHORT).show();
         }
     }
 
