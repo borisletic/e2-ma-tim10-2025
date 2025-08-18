@@ -70,9 +70,7 @@ public class ProfileFragment extends Fragment {
         if (binding == null) return;
 
         try {
-            binding.btnEditProfile.setOnClickListener(v -> {
-                Toast.makeText(getContext(), "Uredi profil funkcionalnost će biti dodana uskoro", Toast.LENGTH_SHORT).show();
-            });
+
 
             binding.btnChangePassword.setOnClickListener(v -> {
                 try {
