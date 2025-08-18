@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 import com.example.ma2025.utils.EquipmentManager;
 import com.example.ma2025.ui.equipment.adapter.EquipmentAdapter;
+import com.example.ma2025.ui.equipment.adapter.EquipmentAdapter;
+import com.example.ma2025.utils.EquipmentManager;
 
 public class ProfileFragment extends Fragment {
 
@@ -42,6 +44,8 @@ public class ProfileFragment extends Fragment {
     private FirebaseFirestore db;
     private PreferencesManager preferencesManager;
     private User currentUser;
+    private EquipmentAdapter equipmentAdapter;
+    private List<Equipment> activeEquipment;
 
     @Nullable
     @Override
@@ -61,6 +65,7 @@ public class ProfileFragment extends Fragment {
             preferencesManager = new PreferencesManager(requireContext());
 
             setupClickListeners();
+            setupEquipmentRecyclerView();
 
             // Show default data first, then try to load from Firebase
             displayDefaultUserData();
@@ -69,6 +74,34 @@ public class ProfileFragment extends Fragment {
         } catch (Exception e) {
             Log.e(TAG, "Error initializing ProfileFragment", e);
             displayErrorState();
+        }
+    }
+
+    private void setupEquipmentRecyclerView() {
+        try {
+            if (binding.rvEquipment != null) {
+                equipmentAdapter = new EquipmentAdapter(activeEquipment, null); // Read-only adapter
+                binding.rvEquipment.setLayoutManager(new LinearLayoutManager(getContext()));
+                binding.rvEquipment.setAdapter(equipmentAdapter);
+                Log.d(TAG, "Equipment RecyclerView setup completed");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up equipment RecyclerView", e);
+        }
+    }
+
+    private void initializeComponents() {
+        try {
+            mAuth = FirebaseAuth.getInstance();
+            db = FirebaseFirestore.getInstance();
+            preferencesManager = new PreferencesManager(getContext());
+            activeEquipment = new ArrayList<>();
+
+            Log.d(TAG, "Components initialized successfully");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing components", e);
+            throw e;
         }
     }
 
@@ -114,10 +147,24 @@ public class ProfileFragment extends Fragment {
                     Toast.makeText(getContext(), "Greška pri navigaciji", Toast.LENGTH_SHORT).show();
                 }
             });
+            binding.btnGoToEquipment.setOnClickListener(v -> {
+                try {
+                    // Navigate to Equipment tab
+                    if (getActivity() instanceof MainActivity) {
+                        MainActivity mainActivity = (MainActivity) getActivity();
+                        mainActivity.navigateToEquipment();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error navigating to equipment", e);
+                    Toast.makeText(getContext(), "Greška pri navigaciji", Toast.LENGTH_SHORT).show();
+                }
+            });
         } catch (Exception e) {
             Log.e(TAG, "Error setting up click listeners", e);
         }
     }
+
+
 
     private void displayDefaultUserData() {
         try {
@@ -214,6 +261,21 @@ public class ProfileFragment extends Fragment {
                     Log.e(TAG, "Error loading user from Firebase", e);
                     Toast.makeText(getContext(), "Greška pri učitavanju profila: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        try {
+            // Refresh data when fragment becomes visible
+            if (currentUser != null) {
+                loadUserEquipment();
+            }
+            Log.d(TAG, "ProfileFragment resumed");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onResume", e);
+        }
     }
 
     private void createMissingUserData(String userId) {
@@ -377,9 +439,9 @@ public class ProfileFragment extends Fragment {
             if (binding == null) return;
 
             // Get active equipment only
-            List<Equipment> activeEquipment = EquipmentManager.getActiveEquipment(equipmentList);
+            List<Equipment> activeEquipmentList = EquipmentManager.getActiveEquipment(equipmentList);
 
-            if (activeEquipment.isEmpty()) {
+            if (activeEquipmentList.isEmpty()) {
                 // Show "no equipment" message
                 if (binding.tvNoEquipment != null) {
                     binding.tvNoEquipment.setVisibility(View.VISIBLE);
@@ -388,6 +450,9 @@ public class ProfileFragment extends Fragment {
                 if (binding.rvEquipment != null) {
                     binding.rvEquipment.setVisibility(View.GONE);
                 }
+                if (binding.tvEquipmentBonus != null) {
+                    binding.tvEquipmentBonus.setVisibility(View.GONE);
+                }
             } else {
                 // Show equipment list
                 if (binding.tvNoEquipment != null) {
@@ -395,21 +460,77 @@ public class ProfileFragment extends Fragment {
                 }
                 if (binding.rvEquipment != null) {
                     binding.rvEquipment.setVisibility(View.VISIBLE);
+                    activeEquipment.clear();
+                    activeEquipment.addAll(activeEquipmentList);
+                    if (equipmentAdapter != null) {
+                        equipmentAdapter.notifyDataSetChanged();
+                    }
+                }
 
-                    // Create adapter for active equipment (read-only mode)
-                    EquipmentAdapter adapter = new EquipmentAdapter(activeEquipment, null);
-                    binding.rvEquipment.setLayoutManager(
-                            new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false)
-                    );
-                    binding.rvEquipment.setAdapter(adapter);
+                // Show equipment bonus summary
+                String bonusText = calculateEquipmentBonuses(activeEquipmentList);
+                if (binding.tvEquipmentBonus != null && !bonusText.isEmpty()) {
+                    binding.tvEquipmentBonus.setVisibility(View.VISIBLE);
+                    binding.tvEquipmentBonus.setText(bonusText);
+                } else if (binding.tvEquipmentBonus != null) {
+                    binding.tvEquipmentBonus.setVisibility(View.GONE);
                 }
             }
 
-            // Update equipment bonus text if view exists
-            updateEquipmentBonus(equipmentList);
-
         } catch (Exception e) {
             Log.e(TAG, "Error displaying equipment", e);
+        }
+    }
+
+    private String calculateEquipmentBonuses(List<Equipment> activeEquipment) {
+        try {
+            if (activeEquipment == null || activeEquipment.isEmpty()) {
+                return "";
+            }
+
+            List<String> bonuses = new ArrayList<>();
+            double totalPpBoost = 0;
+            double totalAttackBoost = 0;
+            double totalCoinBoost = 0;
+            int extraAttacks = 0;
+
+            for (Equipment equipment : activeEquipment) {
+                if (!equipment.isActive()) continue;
+
+                switch (equipment.getEffectType()) {
+                    case Constants.EFFECT_PP_BOOST:
+                        totalPpBoost += equipment.getEffectValue();
+                        break;
+                    case Constants.EFFECT_ATTACK_BOOST:
+                        totalAttackBoost += equipment.getEffectValue();
+                        break;
+                    case Constants.EFFECT_COIN_BOOST:
+                        totalCoinBoost += equipment.getEffectValue();
+                        break;
+                    case "extra_attack":
+                        extraAttacks++;
+                        break;
+                }
+            }
+
+            if (totalPpBoost > 0) {
+                bonuses.add(String.format("PP +%.1f%%", totalPpBoost * 100));
+            }
+            if (totalAttackBoost > 0) {
+                bonuses.add(String.format("Napad +%.1f%%", totalAttackBoost * 100));
+            }
+            if (totalCoinBoost > 0) {
+                bonuses.add(String.format("Novčići +%.1f%%", totalCoinBoost * 100));
+            }
+            if (extraAttacks > 0) {
+                bonuses.add(String.format("+%d napad%s", extraAttacks, extraAttacks > 1 ? "a" : ""));
+            }
+
+            return String.join(", ", bonuses);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error calculating equipment bonuses", e);
+            return "";
         }
     }
 

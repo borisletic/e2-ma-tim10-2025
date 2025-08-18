@@ -22,6 +22,7 @@ public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.Equi
     public interface OnEquipmentActionListener {
         void onActivateEquipment(Equipment equipment);
         void onDeactivateEquipment(Equipment equipment);
+        void onUpgradeEquipment(Equipment equipment);
     }
 
     public EquipmentAdapter(List<Equipment> equipmentList, OnEquipmentActionListener listener) {
@@ -55,6 +56,7 @@ public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.Equi
         private TextView tvEquipmentType;
         private TextView tvEquipmentStatus;
         private Button btnAction;
+        private Button btnUpgrade;
         private View statusIndicator;
 
         public EquipmentViewHolder(@NonNull View itemView) {
@@ -65,6 +67,7 @@ public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.Equi
             tvEquipmentType = itemView.findViewById(R.id.tv_equipment_type);
             tvEquipmentStatus = itemView.findViewById(R.id.tv_equipment_status);
             btnAction = itemView.findViewById(R.id.btn_action);
+            btnUpgrade = itemView.findViewById(R.id.btn_upgrade);
             statusIndicator = itemView.findViewById(R.id.status_indicator);
         }
 
@@ -82,6 +85,9 @@ public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.Equi
 
             // Setup action button
             setupActionButton(equipment, listener);
+
+            // Setup upgrade button
+            setupUpgradeButton(equipment, listener);
         }
 
         private void setEquipmentIcon(Equipment equipment) {
@@ -115,16 +121,21 @@ public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.Equi
         }
 
         private void setStatusIndicator(Equipment equipment) {
+            if (statusIndicator == null) return;
+
             int colorRes;
             if (equipment.isActive()) {
                 colorRes = R.color.success_color;
             } else if (equipment.isExpired()) {
                 colorRes = R.color.error_color;
             } else {
-                colorRes = R.color.warning_color;
+                colorRes = R.color.text_secondary;
             }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                statusIndicator.setBackgroundColor(itemView.getContext().getColor(colorRes));
+                statusIndicator.setBackgroundColor(
+                        itemView.getContext().getColor(colorRes)
+                );
             }
         }
 
@@ -134,19 +145,13 @@ public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.Equi
                 btnAction.setEnabled(false);
                 btnAction.setOnClickListener(null);
             } else if (equipment.isActive()) {
-                if (equipment.isPermanent()) {
-                    btnAction.setText("Aktivno");
-                    btnAction.setEnabled(false);
-                    btnAction.setOnClickListener(null);
-                } else {
-                    btnAction.setText("Deaktiviraj");
-                    btnAction.setEnabled(true);
-                    btnAction.setOnClickListener(v -> {
-                        if (listener != null) {
-                            listener.onDeactivateEquipment(equipment);
-                        }
-                    });
-                }
+                btnAction.setText("Deaktiviraj");
+                btnAction.setEnabled(true);
+                btnAction.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onDeactivateEquipment(equipment);
+                    }
+                });
             } else {
                 btnAction.setText("Aktiviraj");
                 btnAction.setEnabled(equipment.canActivate());
@@ -155,6 +160,23 @@ public class EquipmentAdapter extends RecyclerView.Adapter<EquipmentAdapter.Equi
                         listener.onActivateEquipment(equipment);
                     }
                 });
+            }
+        }
+
+        private void setupUpgradeButton(Equipment equipment, OnEquipmentActionListener listener) {
+            if (equipment.canUpgrade()) {
+                // Show upgrade button for weapons
+                btnUpgrade.setVisibility(View.VISIBLE);
+                btnUpgrade.setText("Unapredi");
+                btnUpgrade.setEnabled(true);
+                btnUpgrade.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onUpgradeEquipment(equipment);
+                    }
+                });
+            } else {
+                // Hide upgrade button for non-weapons
+                btnUpgrade.setVisibility(View.GONE);
             }
         }
     }
