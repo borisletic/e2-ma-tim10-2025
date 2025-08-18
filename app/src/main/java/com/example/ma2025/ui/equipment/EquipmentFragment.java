@@ -44,258 +44,395 @@ public class EquipmentFragment extends Fragment implements
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        binding = FragmentEquipmentBinding.inflate(inflater, container, false);
-        return binding.getRoot();
+        try {
+            binding = FragmentEquipmentBinding.inflate(inflater, container, false);
+            return binding.getRoot();
+        } catch (Exception e) {
+            Log.e(TAG, "Error creating view", e);
+            return inflater.inflate(R.layout.fragment_equipment, container, false);
+        }
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        initializeFirebase();
-        setupUI();
-        loadUserData();
+        try {
+            initializeFirebase();
+            setupUI();
+            loadUserData();
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onViewCreated", e);
+            Toast.makeText(getContext(), "Greška pri inicijalizaciji", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void initializeFirebase() {
-        mAuth = FirebaseAuth.getInstance();
-        db = FirebaseFirestore.getInstance();
-        preferencesManager = new PreferencesManager(requireContext());
+        try {
+            mAuth = FirebaseAuth.getInstance();
+            db = FirebaseFirestore.getInstance();
+            preferencesManager = new PreferencesManager(requireContext());
+
+            // Initialize with default user if needed
+            currentUser = new User();
+            currentUser.setCoins(0);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing Firebase", e);
+            throw e;
+        }
     }
 
     private void setupUI() {
-        // Setup tabs
-        binding.btnMyEquipment.setOnClickListener(v -> showMyEquipment());
-        binding.btnShop.setOnClickListener(v -> showShop());
+        try {
+            if (binding == null) {
+                Log.e(TAG, "Binding is null in setupUI");
+                return;
+            }
 
-        // Setup RecyclerViews
-        userEquipment = new ArrayList<>();
-        shopItems = new ArrayList<>();
+            // Initialize lists first
+            userEquipment = new ArrayList<>();
+            shopItems = new ArrayList<>();
 
-        equipmentAdapter = new EquipmentAdapter(userEquipment, this);
-        binding.recyclerViewEquipment.setLayoutManager(new LinearLayoutManager(getContext()));
-        binding.recyclerViewEquipment.setAdapter(equipmentAdapter);
+            // Setup click listeners with null checks
+            if (binding.btnMyEquipment != null) {
+                binding.btnMyEquipment.setOnClickListener(v -> showMyEquipment());
+            }
+            if (binding.btnShop != null) {
+                binding.btnShop.setOnClickListener(v -> showShop());
+            }
 
-        shopAdapter = new ShopAdapter(shopItems, this);
-        binding.recyclerViewShop.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        binding.recyclerViewShop.setAdapter(shopAdapter);
+            // Setup RecyclerViews with null checks
+            if (binding.recyclerViewEquipment != null) {
+                equipmentAdapter = new EquipmentAdapter(userEquipment, this);
+                binding.recyclerViewEquipment.setLayoutManager(new LinearLayoutManager(getContext()));
+                binding.recyclerViewEquipment.setAdapter(equipmentAdapter);
+            }
 
-        // Default to My Equipment
-        showMyEquipment();
+            if (binding.recyclerViewShop != null) {
+                shopAdapter = new ShopAdapter(shopItems, this);
+                binding.recyclerViewShop.setLayoutManager(new GridLayoutManager(getContext(), 2));
+                binding.recyclerViewShop.setAdapter(shopAdapter);
+            }
+
+            // Default to My Equipment
+            showMyEquipment();
+
+            Log.d(TAG, "UI setup completed successfully");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up UI", e);
+            Toast.makeText(getContext(), "Greška pri postavljanju interfejsa", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void showMyEquipment() {
-        binding.btnMyEquipment.setSelected(true);
-        binding.btnShop.setSelected(false);
-        binding.recyclerViewEquipment.setVisibility(View.VISIBLE);
-        binding.recyclerViewShop.setVisibility(View.GONE);
-        binding.tvNoEquipment.setVisibility(userEquipment.isEmpty() ? View.VISIBLE : View.GONE);
+        try {
+            if (binding == null) return;
 
-        loadUserEquipment();
+            if (binding.btnMyEquipment != null) {
+                binding.btnMyEquipment.setSelected(true);
+            }
+            if (binding.btnShop != null) {
+                binding.btnShop.setSelected(false);
+            }
+            if (binding.recyclerViewEquipment != null) {
+                binding.recyclerViewEquipment.setVisibility(View.VISIBLE);
+            }
+            if (binding.recyclerViewShop != null) {
+                binding.recyclerViewShop.setVisibility(View.GONE);
+            }
+            if (binding.tvNoEquipment != null) {
+                binding.tvNoEquipment.setVisibility(
+                        (userEquipment == null || userEquipment.isEmpty()) ? View.VISIBLE : View.GONE
+                );
+            }
+
+            loadUserEquipment();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error showing my equipment", e);
+        }
     }
 
     private void showShop() {
-        binding.btnMyEquipment.setSelected(false);
-        binding.btnShop.setSelected(true);
-        binding.recyclerViewEquipment.setVisibility(View.GONE);
-        binding.recyclerViewShop.setVisibility(View.VISIBLE);
-        binding.tvNoEquipment.setVisibility(View.GONE);
+        try {
+            if (binding == null) return;
 
-        generateShopItems();
+            if (binding.btnMyEquipment != null) {
+                binding.btnMyEquipment.setSelected(false);
+            }
+            if (binding.btnShop != null) {
+                binding.btnShop.setSelected(true);
+            }
+            if (binding.recyclerViewEquipment != null) {
+                binding.recyclerViewEquipment.setVisibility(View.GONE);
+            }
+            if (binding.recyclerViewShop != null) {
+                binding.recyclerViewShop.setVisibility(View.VISIBLE);
+            }
+            if (binding.tvNoEquipment != null) {
+                binding.tvNoEquipment.setVisibility(View.GONE);
+            }
+
+            generateShopItems();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error showing shop", e);
+        }
     }
 
     private void loadUserData() {
-        if (mAuth.getCurrentUser() == null) return;
+        try {
+            if (mAuth.getCurrentUser() == null) {
+                Log.w(TAG, "User not authenticated");
+                return;
+            }
 
-        String userId = mAuth.getCurrentUser().getUid();
+            String userId = mAuth.getCurrentUser().getUid();
 
-        db.collection(Constants.COLLECTION_USERS)
-                .document(userId)
-                .get()
-                .addOnSuccessListener(document -> {
-                    if (document.exists()) {
-                        currentUser = document.toObject(User.class);
-                        updateCoinsDisplay();
-                        loadUserEquipment();
-                    } else {
+            db.collection(Constants.COLLECTION_USERS)
+                    .document(userId)
+                    .get()
+                    .addOnSuccessListener(document -> {
+                        try {
+                            if (document.exists()) {
+                                currentUser = document.toObject(User.class);
+                                if (currentUser == null) {
+                                    currentUser = new User();
+                                    currentUser.setCoins(500);
+                                }
+                            } else {
+                                createDefaultUser(userId);
+                            }
+                            updateCoinsDisplay();
+                            loadUserEquipment();
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error processing user data", e);
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error loading user data", e);
                         createDefaultUser(userId);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error loading user data", e);
-                    Toast.makeText(getContext(), "Greška pri učitavanju korisnika", Toast.LENGTH_SHORT).show();
-                });
+                    });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in loadUserData", e);
+        }
     }
 
     private void createDefaultUser(String userId) {
         currentUser = new User();
         currentUser.setUid(userId);
-        currentUser.setCoins(500); // Start with some coins for testing
+        currentUser.setCoins(5000); // Povećajte sa 500 na 5000 za testiranje
         updateCoinsDisplay();
     }
 
     private void updateCoinsDisplay() {
-        if (currentUser != null && binding != null) {
-            binding.tvCoins.setText(currentUser.getCoins() + " novčića");
+        try {
+            if (currentUser != null && binding != null && binding.tvCoins != null) {
+                binding.tvCoins.setText(currentUser.getCoins() + " novčića");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating coins display", e);
         }
     }
 
     private void loadUserEquipment() {
-        if (mAuth.getCurrentUser() == null) return;
+        try {
+            if (mAuth.getCurrentUser() == null) {
+                Log.w(TAG, "User not authenticated for equipment loading");
+                return;
+            }
 
-        String userId = mAuth.getCurrentUser().getUid();
+            String userId = mAuth.getCurrentUser().getUid();
 
-        db.collection(Constants.COLLECTION_EQUIPMENT)
-                .whereEqualTo("userId", userId)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    userEquipment.clear();
-                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        Equipment equipment = document.toObject(Equipment.class);
-                        equipment.setId(document.getId());
-                        userEquipment.add(equipment);
-                    }
+            db.collection(Constants.COLLECTION_EQUIPMENT)
+                    .whereEqualTo("userId", userId)
+                    .get()
+                    .addOnSuccessListener(queryDocumentSnapshots -> {
+                        try {
+                            if (userEquipment == null) {
+                                userEquipment = new ArrayList<>();
+                            }
+                            userEquipment.clear();
 
-                    equipmentAdapter.notifyDataSetChanged();
-                    binding.tvNoEquipment.setVisibility(userEquipment.isEmpty() ? View.VISIBLE : View.GONE);
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error loading user equipment", e);
-                });
+                            for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                                Equipment equipment = document.toObject(Equipment.class);
+                                equipment.setId(document.getId());
+                                userEquipment.add(equipment);
+                            }
+
+                            if (equipmentAdapter != null) {
+                                equipmentAdapter.notifyDataSetChanged();
+                            }
+
+                            if (binding != null && binding.tvNoEquipment != null) {
+                                binding.tvNoEquipment.setVisibility(
+                                        userEquipment.isEmpty() ? View.VISIBLE : View.GONE
+                                );
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error processing equipment data", e);
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error loading user equipment", e);
+                    });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in loadUserEquipment", e);
+        }
     }
 
     private void generateShopItems() {
-        shopItems.clear();
+        try {
+            if (shopItems == null) {
+                shopItems = new ArrayList<>();
+            }
+            shopItems.clear();
 
-        if (currentUser == null) return;
+            if (currentUser == null) {
+                currentUser = new User();
+                currentUser.setLevel(1);
+            }
 
-        // Calculate boss reward for current level for pricing
-        int bossReward = GameLogicUtils.calculateBossReward(currentUser.getLevel());
+            int bossReward = GameLogicUtils.calculateBossReward(currentUser.getLevel());
 
-        // POTIONS
-        Equipment potion1 = Equipment.createPotion("Napitak Snage I", 0.20, 50, false);
-        potion1.setPrice(Equipment.calculatePrice(bossReward, 50));
-        shopItems.add(potion1);
+            // POTIONS - Dodajte više napitaka
+            Equipment potion1 = Equipment.createPotion("Napitak Snage I", 0.20, 50, false);
+            potion1.setPrice(Equipment.calculatePrice(bossReward, 50));
+            shopItems.add(potion1);
 
-        Equipment potion2 = Equipment.createPotion("Napitak Snage II", 0.40, 70, false);
-        potion2.setPrice(Equipment.calculatePrice(bossReward, 70));
-        shopItems.add(potion2);
+            Equipment potion2 = Equipment.createPotion("Napitak Snage II", 0.40, 70, false);
+            potion2.setPrice(Equipment.calculatePrice(bossReward, 70));
+            shopItems.add(potion2);
 
-        Equipment potion3 = Equipment.createPotion("Eliksir Snage I", 0.05, 200, true);
-        potion3.setPrice(Equipment.calculatePrice(bossReward, 200));
-        shopItems.add(potion3);
+            Equipment potion3 = Equipment.createPotion("Eliksir Snage I", 0.05, 200, true);
+            potion3.setPrice(Equipment.calculatePrice(bossReward, 200));
+            shopItems.add(potion3);
 
-        Equipment potion4 = Equipment.createPotion("Eliksir Snage II", 0.10, 1000, true);
-        potion4.setPrice(Equipment.calculatePrice(bossReward, 1000));
-        shopItems.add(potion4);
+            Equipment potion4 = Equipment.createPotion("Eliksir Snage II", 0.10, 1000, true);
+            potion4.setPrice(Equipment.calculatePrice(bossReward, 1000));
+            shopItems.add(potion4);
 
-        // CLOTHING
-        Equipment gloves = Equipment.createClothing("Rukavice Snage", Constants.EFFECT_PP_BOOST, 0.10, 60);
-        gloves.setPrice(Equipment.calculatePrice(bossReward, 60));
-        shopItems.add(gloves);
+            // CLOTHING - Dodajte više odeće
+            Equipment gloves = Equipment.createClothing("Rukavice Snage", Constants.EFFECT_PP_BOOST, 0.10, 60);
+            gloves.setPrice(Equipment.calculatePrice(bossReward, 60));
+            shopItems.add(gloves);
 
-        Equipment shield = Equipment.createClothing("Štit Preciznosti", Constants.EFFECT_ATTACK_BOOST, 0.10, 60);
-        shield.setPrice(Equipment.calculatePrice(bossReward, 60));
-        shopItems.add(shield);
+            Equipment shield = Equipment.createClothing("Štit Preciznosti", Constants.EFFECT_ATTACK_BOOST, 0.10, 60);
+            shield.setPrice(Equipment.calculatePrice(bossReward, 60));
+            shopItems.add(shield);
 
-        Equipment boots = Equipment.createClothing("Čizme Brzine", "extra_attack", 0.40, 80);
-        boots.setPrice(Equipment.calculatePrice(bossReward, 80));
-        shopItems.add(boots);
+            Equipment boots = Equipment.createClothing("Čizme Brzine", "extra_attack", 0.40, 80);
+            boots.setPrice(Equipment.calculatePrice(bossReward, 80));
+            shopItems.add(boots);
 
-        shopAdapter.notifyDataSetChanged();
+            // Dodatna odeća
+            Equipment armor = Equipment.createClothing("Oklop Zaštite", Constants.EFFECT_PP_BOOST, 0.15, 100);
+            armor.setPrice(Equipment.calculatePrice(bossReward, 100));
+            shopItems.add(armor);
+
+            if (shopAdapter != null) {
+                shopAdapter.notifyDataSetChanged();
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error generating shop items", e);
+        }
     }
 
+    // Interface implementations
     @Override
     public void onActivateEquipment(Equipment equipment) {
-        if (equipment.canActivate()) {
-            equipment.activate();
-            updateEquipmentInFirebase(equipment);
-            equipmentAdapter.notifyDataSetChanged();
-            Toast.makeText(getContext(), equipment.getName() + " aktivirano!", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(getContext(), "Oprema je već aktivna ili potrošena", Toast.LENGTH_SHORT).show();
+        try {
+            if (equipment != null && equipment.canActivate()) {
+                equipment.activate();
+                updateEquipmentInFirebase(equipment);
+                if (equipmentAdapter != null) {
+                    equipmentAdapter.notifyDataSetChanged();
+                }
+                Toast.makeText(getContext(), equipment.getName() + " aktivirano!", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(getContext(), "Oprema je već aktivna ili potrošena", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error activating equipment", e);
         }
     }
 
     @Override
     public void onDeactivateEquipment(Equipment equipment) {
-        equipment.deactivate();
-        updateEquipmentInFirebase(equipment);
-        equipmentAdapter.notifyDataSetChanged();
-        Toast.makeText(getContext(), equipment.getName() + " deaktivirano!", Toast.LENGTH_SHORT).show();
+        try {
+            if (equipment != null) {
+                equipment.deactivate();
+                updateEquipmentInFirebase(equipment);
+                if (equipmentAdapter != null) {
+                    equipmentAdapter.notifyDataSetChanged();
+                }
+                Toast.makeText(getContext(), equipment.getName() + " deaktivirano!", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error deactivating equipment", e);
+        }
     }
 
     @Override
     public void onPurchaseItem(Equipment equipment) {
-        if (currentUser == null) return;
+        try {
+            if (currentUser == null || equipment == null) {
+                Toast.makeText(getContext(), "Greška pri kupovini", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-        if (currentUser.getCoins() >= equipment.getPrice()) {
-            // Deduct coins
-            currentUser.setCoins(currentUser.getCoins() - equipment.getPrice());
+            if (currentUser.getCoins() >= equipment.getPrice()) {
+                // Oduzmi novčiće
+                currentUser.setCoins(currentUser.getCoins() - equipment.getPrice());
 
-            // Add equipment to user's collection
-            Equipment purchasedEquipment = createEquipmentCopy(equipment);
-            purchasedEquipment.setId(null); // Will be generated by Firebase
+                // Kreiraj kopiju opreme za korisnika
+                Equipment purchasedEquipment = new Equipment(equipment);
+                purchasedEquipment.setId(null);
 
-            // Save to Firebase
-            String userId = mAuth.getCurrentUser().getUid();
-            purchasedEquipment.setUserId(userId);
+                // Sačuvaj u Firebase
+                String userId = mAuth.getCurrentUser().getUid();
+                purchasedEquipment.setUserId(userId);
 
-            db.collection(Constants.COLLECTION_EQUIPMENT)
-                    .add(purchasedEquipment)
-                    .addOnSuccessListener(documentReference -> {
-                        purchasedEquipment.setId(documentReference.getId());
+                db.collection(Constants.COLLECTION_EQUIPMENT)
+                        .add(purchasedEquipment)
+                        .addOnSuccessListener(documentReference -> {
+                            purchasedEquipment.setId(documentReference.getId());
 
-                        // Update user coins in Firebase
-                        updateUserCoins();
+                            // Ažuriraj novčiće u Firebase
+                            updateUserCoins();
 
-                        Toast.makeText(getContext(),
-                                equipment.getName() + " uspešno kupljeno!",
-                                Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getContext(),
+                                    equipment.getName() + " uspešno kupljeno!",
+                                    Toast.LENGTH_SHORT).show();
 
-                        // Refresh equipment list if on that tab
-                        if (binding.recyclerViewEquipment.getVisibility() == View.VISIBLE) {
-                            loadUserEquipment();
-                        }
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "Error purchasing equipment", e);
-                        // Refund coins on error
-                        currentUser.setCoins(currentUser.getCoins() + equipment.getPrice());
-                        updateCoinsDisplay();
-                        Toast.makeText(getContext(), "Greška pri kupovini", Toast.LENGTH_SHORT).show();
-                    });
+                            // Refresh ako smo na "Moja Oprema" tabu
+                            if (binding.recyclerViewEquipment.getVisibility() == View.VISIBLE) {
+                                loadUserEquipment();
+                            }
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e(TAG, "Error purchasing equipment", e);
+                            // Vrati novčiće u slučaju greške
+                            currentUser.setCoins(currentUser.getCoins() + equipment.getPrice());
+                            updateCoinsDisplay();
+                            Toast.makeText(getContext(), "Greška pri kupovini", Toast.LENGTH_SHORT).show();
+                        });
 
-            updateCoinsDisplay();
+                updateCoinsDisplay();
 
-        } else {
-            Toast.makeText(getContext(), "Nemate dovoljno novčića!", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private Equipment createEquipmentCopy(Equipment original) {
-        Equipment copy = new Equipment();
-        copy.setName(original.getName());
-        copy.setDescription(original.getDescription());
-        copy.setType(original.getType());
-        copy.setSubType(original.getSubType());
-        copy.setEffectValue(original.getEffectValue());
-        copy.setEffectType(original.getEffectType());
-        copy.setPrice(original.getPrice());
-        copy.setPermanent(original.isPermanent());
-        copy.setIconName(original.getIconName());
-        copy.setUsesRemaining(original.getUsesRemaining());
-        return copy;
-    }
-
-    private void updateEquipmentInFirebase(Equipment equipment) {
-        if (equipment.getId() != null) {
-            db.collection(Constants.COLLECTION_EQUIPMENT)
-                    .document(equipment.getId())
-                    .set(equipment)
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "Error updating equipment", e);
-                    });
+            } else {
+                Toast.makeText(getContext(),
+                        String.format("Nemate dovoljno novčića! Potrebno: %d, imate: %d",
+                                equipment.getPrice(), currentUser.getCoins()),
+                        Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error purchasing item", e);
         }
     }
 
@@ -307,6 +444,21 @@ public class EquipmentFragment extends Fragment implements
                     .addOnFailureListener(e -> {
                         Log.e(TAG, "Error updating user coins", e);
                     });
+        }
+    }
+
+    private void updateEquipmentInFirebase(Equipment equipment) {
+        try {
+            if (equipment != null && equipment.getId() != null) {
+                db.collection(Constants.COLLECTION_EQUIPMENT)
+                        .document(equipment.getId())
+                        .set(equipment)
+                        .addOnFailureListener(e -> {
+                            Log.e(TAG, "Error updating equipment", e);
+                        });
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in updateEquipmentInFirebase", e);
         }
     }
 

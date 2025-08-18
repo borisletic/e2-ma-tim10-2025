@@ -78,8 +78,17 @@ public class LevelUpDialog extends DialogFragment {
     private void setupDialog() {
         Dialog dialog = getDialog();
         if (dialog != null) {
-            dialog.setCancelable(false);
-            dialog.setCanceledOnTouchOutside(false);
+            dialog.setCancelable(true);
+            dialog.setCanceledOnTouchOutside(true);
+
+            // Dodajte back button handler
+            dialog.setOnKeyListener((dialogInterface, keyCode, event) -> {
+                if (keyCode == android.view.KeyEvent.KEYCODE_BACK) {
+                    dismiss();
+                    return true;
+                }
+                return false;
+            });
         }
     }
 
@@ -147,6 +156,11 @@ public class LevelUpDialog extends DialogFragment {
 
         binding.btnShare.setOnClickListener(v -> {
             shareAchievement();
+        });
+
+        // Dodajte mogućnost zatvaranja klikom bilo gde na dialog
+        binding.getRoot().setOnClickListener(v -> {
+            startExitAnimation();
         });
     }
 
