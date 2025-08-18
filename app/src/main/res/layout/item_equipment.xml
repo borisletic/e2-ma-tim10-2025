@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="80dp"
+    android:layout_height="100dp"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@color/background_card">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:gravity="center">
+
+        <RelativeLayout
+            android:layout_width="32dp"
+            android:layout_height="32dp">
+
+            <ImageView
+                android:id="@+id/iv_equipment_icon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/ic_equipment"
+                android:contentDescription="Equipment icon"
+                android:scaleType="centerInside" />
+
+            <View
+                android:id="@+id/active_indicator"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:background="@drawable/active_indicator"
+                android:visibility="gone" />
+
+        </RelativeLayout>
+
+        <TextView
+            android:id="@+id/tv_equipment_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Equipment"
+            android:textColor="@color/text_primary"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/tv_equipment_effect"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+10%"
+            android:textColor="@color/success_color"
+            android:textSize="9sp"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/tv_equipment_durability"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2/2"
+            android:textColor="@color/text_secondary"
+            android:textSize="8sp"
+            android:visibility="gone"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>
