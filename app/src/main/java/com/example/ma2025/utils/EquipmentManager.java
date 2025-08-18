@@ -2,6 +2,8 @@ package com.example.ma2025.utils;
 
 import com.example.ma2025.data.models.Equipment;
 import com.example.ma2025.data.models.User;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -98,20 +100,7 @@ public class EquipmentManager {
         }
     }
 
-    /**
-     * Get list of active equipment for display
-     */
-    public static List<Equipment> getActiveEquipment(List<Equipment> equipment) {
-        List<Equipment> activeEquipment = new java.util.ArrayList<>();
 
-        for (Equipment item : equipment) {
-            if (item.isActive()) {
-                activeEquipment.add(item);
-            }
-        }
-
-        return activeEquipment;
-    }
 
     /**
      * Check if user has any active equipment
@@ -158,5 +147,21 @@ public class EquipmentManager {
         }
 
         return summary.toString().trim();
+    }
+
+    public static List<Equipment> getActiveEquipment(List<Equipment> equipmentList) {
+        List<Equipment> activeEquipment = new ArrayList<>();
+
+        if (equipmentList == null) {
+            return activeEquipment;
+        }
+
+        for (Equipment equipment : equipmentList) {
+            if (equipment != null && equipment.isActive() && !equipment.isExpired()) {
+                activeEquipment.add(equipment);
+            }
+        }
+
+        return activeEquipment;
     }
 }

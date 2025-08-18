@@ -313,6 +313,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+
     private void completeLogout() {
         try {
             // Sign out from Firebase

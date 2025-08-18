@@ -25,6 +25,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import java.util.ArrayList;
 import java.util.List;
+import android.app.AlertDialog;
 
 public class EquipmentFragment extends Fragment implements
         EquipmentAdapter.OnEquipmentActionListener,
@@ -466,5 +467,96 @@ public class EquipmentFragment extends Fragment implements
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    @Override
+    public void onUpgradeEquipment(Equipment equipment) {
+        try {
+            if (equipment == null || !equipment.canUpgrade()) {
+                Toast.makeText(getContext(), "Ovu opremu nije moguće unaprediti", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (currentUser == null) {
+                Toast.makeText(getContext(), "Greška pri učitavanju korisničkih podataka", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int bossReward = GameLogicUtils.calculateBossReward(currentUser.getLevel());
+            int upgradeCost = equipment.getUpgradeCost(bossReward);
+
+            // Show confirmation dialog
+            showUpgradeConfirmationDialog(equipment, upgradeCost);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error upgrading equipment", e);
+            Toast.makeText(getContext(), "Greška pri unapređivanju opreme", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showUpgradeConfirmationDialog(Equipment equipment, int upgradeCost) {
+        try {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+            builder.setTitle("Unapređenje oružja");
+            builder.setMessage(String.format(
+                    "Da li želite da unapredite %s?\n\n" +
+                            "Cena: %d novčića\n" +
+                            "Efekat se povećava za 0.01%%\n" +
+                            "Trenutni nivo: %d",
+                    equipment.getName(),
+                    upgradeCost,
+                    equipment.getUpgradeLevel()
+            ));
+
+            builder.setPositiveButton("Unapredi", (dialog, which) -> {
+                performUpgrade(equipment, upgradeCost);
+            });
+
+            builder.setNegativeButton("Otkaži", (dialog, which) -> {
+                dialog.dismiss();
+            });
+
+            builder.show();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error showing upgrade dialog", e);
+        }
+    }
+
+    private void performUpgrade(Equipment equipment, int upgradeCost) {
+        try {
+            if (currentUser.getCoins() >= upgradeCost) {
+                // Deduct coins
+                currentUser.setCoins(currentUser.getCoins() - upgradeCost);
+
+                // Upgrade equipment
+                equipment.upgrade();
+
+                // Update in Firebase
+                updateEquipmentInFirebase(equipment);
+                updateUserCoins();
+
+                // Update UI
+                if (equipmentAdapter != null) {
+                    equipmentAdapter.notifyDataSetChanged();
+                }
+                updateCoinsDisplay();
+
+                Toast.makeText(getContext(),
+                        String.format("%s uspešno unapređeno na nivo %d!",
+                                equipment.getName(), equipment.getUpgradeLevel()),
+                        Toast.LENGTH_SHORT).show();
+
+            } else {
+                Toast.makeText(getContext(),
+                        String.format("Nemate dovoljno novčića! Potrebno: %d, Imate: %d",
+                                upgradeCost, currentUser.getCoins()),
+                        Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error performing upgrade", e);
+            Toast.makeText(getContext(), "Greška pri unapređivanju", Toast.LENGTH_SHORT).show();
+        }
     }
 }

@@ -20,12 +20,19 @@ public class Equipment {
     private long activationTime;
     private String iconName;
 
+    private int upgradeLevel;
+    private double baseEffectValue;
+    private int timesUpgraded;
+
     // Constructors
     public Equipment() {
         this.purchaseTime = System.currentTimeMillis();
         this.isActive = false;
         this.usesRemaining = 0;
         this.isPermanent = false;
+        this.upgradeLevel = 0;
+        this.baseEffectValue = 0.0;
+        this.timesUpgraded = 0;
     }
 
     // U Equipment.java dodajte ovaj konstruktor:
@@ -42,6 +49,9 @@ public class Equipment {
         this.usesRemaining = other.usesRemaining;
         this.isActive = false; // Nova oprema nije aktivna
         this.purchaseTime = System.currentTimeMillis();
+        this.upgradeLevel = other.upgradeLevel;
+        this.baseEffectValue = other.baseEffectValue;
+        this.timesUpgraded = other.timesUpgraded;
     }
 
     public Equipment(String name, String description, int type, int subType,
@@ -117,6 +127,9 @@ public class Equipment {
         weapon.isPermanent = true;
         weapon.price = 0; // Weapons are only obtained from boss battles
         weapon.usesRemaining = -1; // Permanent
+        weapon.baseEffectValue = effectValue; // Store original value
+        weapon.upgradeLevel = 0;
+        weapon.timesUpgraded = 0;
 
         switch (effectType) {
             case Constants.EFFECT_PP_BOOST:
@@ -129,6 +142,57 @@ public class Equipment {
                 break;
         }
         return weapon;
+    }
+
+    public boolean canUpgrade() {
+        return "weapon".equals(this.type);
+    }
+
+    public int getUpgradeCost(int bossReward) {
+        if (!canUpgrade()) return 0;
+        return (int) (bossReward * Constants.WEAPON_UPGRADE_PRICE / 100.0);
+    }
+
+    public void upgrade() {
+        if (!canUpgrade()) return;
+
+        upgradeLevel++;
+        timesUpgraded++;
+
+        // Increase effect value by 0.01% (as per specification)
+        effectValue += 0.0001;
+
+        // Update description
+        updateDescription();
+    }
+
+    public void combineWithSameWeapon() {
+        if (!canUpgrade()) return;
+
+        // Add 0.02% when getting same weapon from boss (as per specification)
+        effectValue += 0.0002;
+
+        // Update description
+        updateDescription();
+    }
+
+    private void updateDescription() {
+        if (!"weapon".equals(this.type)) return;
+
+        switch (effectType) {
+            case Constants.EFFECT_PP_BOOST:
+                description = "Trajno povećava snagu za " + String.format("%.2f", effectValue * 100) + "%";
+                if (upgradeLevel > 0) {
+                    description += " (Unapređeno " + upgradeLevel + "x)";
+                }
+                break;
+            case Constants.EFFECT_COIN_BOOST:
+                description = "Trajno povećava novčiće za " + String.format("%.2f", effectValue * 100) + "%";
+                if (upgradeLevel > 0) {
+                    description += " (Unapređeno " + upgradeLevel + "x)";
+                }
+                break;
+        }
     }
 
     // Business logic methods
@@ -160,9 +224,24 @@ public class Equipment {
         return !isPermanent && usesRemaining <= 0;
     }
 
+    public int getUpgradeLevel() { return upgradeLevel; }
+    public void setUpgradeLevel(int upgradeLevel) { this.upgradeLevel = upgradeLevel; }
+
+    public double getBaseEffectValue() { return baseEffectValue; }
+    public void setBaseEffectValue(double baseEffectValue) { this.baseEffectValue = baseEffectValue; }
+
+    public int getTimesUpgraded() { return timesUpgraded; }
+    public void setTimesUpgraded(int timesUpgraded) { this.timesUpgraded = timesUpgraded; }
+
     public String getStatusText() {
         if (!isActive) return "Neaktivno";
-        if (isPermanent) return "Aktivno (trajno)";
+        if (isPermanent) {
+            String status = "Aktivno (trajno)";
+            if (canUpgrade() && upgradeLevel > 0) {
+                status += " - Nivo " + upgradeLevel;
+            }
+            return status;
+        }
         if (usesRemaining == -1) return "Aktivno (trajno)";
         return "Aktivno (" + usesRemaining + " preostalo)";
     }
