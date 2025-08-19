@@ -1,4 +1,3 @@
-// Fixed SplashActivity.java - Added better debugging and error handling
 package com.example.ma2025.ui.auth;
 
 import android.content.Intent;
@@ -11,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.ma2025.MainActivity;
 import com.example.ma2025.R;
 import com.example.ma2025.utils.Constants;
+import com.example.ma2025.utils.EmailActivationChecker; // DODANO: Import
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -21,6 +21,7 @@ public class SplashActivity extends AppCompatActivity {
     private static final int SPLASH_DURATION = 2000; // 2 sekunde
     private FirebaseAuth mAuth;
     private SharedPreferences sharedPreferences;
+    private EmailActivationChecker activationChecker; // DODANO: Declaration
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +35,7 @@ public class SplashActivity extends AppCompatActivity {
             FirebaseApp.initializeApp(this);
             mAuth = FirebaseAuth.getInstance();
             sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE);
+            activationChecker = new EmailActivationChecker(); // DODANO: Initialization
 
             Log.d(TAG, "Firebase and preferences initialized");
 
@@ -65,17 +67,57 @@ public class SplashActivity extends AppCompatActivity {
             }
 
             // Check all conditions for successful login
-            if (currentUser != null && isLoggedIn && currentUser.isEmailVerified()) {
-                Log.d(TAG, "User is authenticated, going to MainActivity");
-                redirectToMain();
+            if (currentUser != null && isLoggedIn) {
+                if (currentUser.isEmailVerified()) {
+                    // DODANO: Proveri da li je aktivacija bila u roku od 24h
+                    activationChecker.checkActivationStatus(currentUser.getUid(),
+                            new EmailActivationChecker.ActivationStatusCallback() {
+                                @Override
+                                public void onActivated() {
+                                    Log.d(TAG, "User is activated, going to MainActivity");
+                                    redirectToMain(); // OK, može u aplikaciju
+                                }
+
+                                @Override
+                                public void onExpired() {
+                                    Log.d(TAG, "User activation expired, deleting account");
+                                    // Obriši account i vrati na login
+                                    mAuth.signOut();
+                                    clearPreferences();
+                                    redirectToLogin();
+                                }
+
+                                @Override
+                                public void onPending() {
+                                    Log.d(TAG, "User activation pending, going to login");
+                                    // Još uvek pending, vrati na login
+                                    mAuth.signOut();
+                                    redirectToLogin();
+                                }
+
+                                @Override
+                                public void onNotFound() {
+                                    Log.d(TAG, "No activation record found, going to login");
+                                    // Nema record o aktivaciji, tretirati kao neaktiviran
+                                    redirectToLogin();
+                                }
+
+                                @Override
+                                public void onError(String error) {
+                                    Log.e(TAG, "Error checking activation status: " + error);
+                                    redirectToLogin();
+                                }
+                            });
+                } else {
+                    Log.d(TAG, "Email not verified, going to login");
+                    redirectToLogin();
+                }
             } else {
                 // Log specific reasons for redirect to login
                 if (currentUser == null) {
                     Log.d(TAG, "No Firebase user found, going to login");
                 } else if (!isLoggedIn) {
                     Log.d(TAG, "User not marked as logged in preferences, going to login");
-                } else if (!currentUser.isEmailVerified()) {
-                    Log.d(TAG, "Email not verified, going to login");
                 }
                 redirectToLogin();
             }
@@ -84,6 +126,21 @@ public class SplashActivity extends AppCompatActivity {
             Log.e(TAG, "Error checking user status", e);
             Toast.makeText(this, "Greška pri proveri korisnika", Toast.LENGTH_SHORT).show();
             redirectToLogin();
+        }
+    }
+
+    // DODANO: clearPreferences metoda
+    private void clearPreferences() {
+        try {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putBoolean(Constants.PREF_IS_LOGGED_IN, false);
+            editor.remove(Constants.PREF_USER_ID);
+            editor.remove(Constants.PREF_USER_EMAIL);
+            editor.remove(Constants.PREF_LAST_LOGIN);
+            editor.apply();
+            Log.d(TAG, "Preferences cleared");
+        } catch (Exception e) {
+            Log.e(TAG, "Error clearing preferences", e);
         }
     }
 
@@ -120,6 +177,10 @@ public class SplashActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // DODANO: Cleanup
+        if (activationChecker != null) {
+            activationChecker.shutdown();
+        }
         Log.d(TAG, "SplashActivity destroyed");
     }
 }
