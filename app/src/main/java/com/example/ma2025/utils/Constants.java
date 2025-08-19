@@ -190,4 +190,14 @@ public class Constants {
     // Network timeouts (milliseconds)
     public static final int NETWORK_TIMEOUT_CONNECTION = 10000; // 10 seconds
     public static final int NETWORK_TIMEOUT_READ = 15000; // 15 seconds
+    public static final String COLLECTION_FRIENDS = "friends";
+    public static final String COLLECTION_ALLIANCE_INVITATIONS = "alliance_invitations";
+    public static final String COLLECTION_ALLIANCE_MESSAGES = "alliance_messages";
+
+    // Success messages
+    public static final String SUCCESS_FRIEND_ADDED = "Prijatelj je uspešno dodat!";
+    public static final String SUCCESS_ALLIANCE_CREATED = "Savez je uspešno kreiran!";
+    public static final String SUCCESS_ALLIANCE_JOINED = "Uspešno ste se pridružili savezu!";
+    public static final String SUCCESS_INVITATION_SENT = "Poziv je poslat!";
+    public static final String SUCCESS_MESSAGE_SENT = "Poruka je poslata!";
 }

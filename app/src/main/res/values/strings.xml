@@ -59,4 +59,26 @@
     <string name="finish">Završi</string>
     <string name="coming_soon">Uskoro dostupno</string>
     <string name="feature_coming_soon">Ova funkcionalnost će biti implementirana u sledećoj verziji.</string>
+    <!-- Friends and Alliance -->
+    <string name="friends_and_alliance">Prijatelji i savez</string>
+    <string name="search_users">Pretraži korisnike</string>
+    <string name="scan_qr_code">Skeniraj QR kod</string>
+    <string name="add_friend">Dodaj prijatelja</string>
+    <string name="create_alliance">Kreiraj savez</string>
+    <string name="invite_to_alliance">Pozovi u savez</string>
+    <string name="alliance_chat">Chat saveza</string>
+    <string name="leave_alliance">Napusti savez</string>
+    <string name="delete_alliance">Obriši savez</string>
+    <string name="alliance_invitations">Pozivi za savez</string>
+    <string name="accept_invitation">Prihvati poziv</string>
+    <string name="decline_invitation">Odbij poziv</string>
+    <string name="send_message">Pošalji poruku</string>
+    <string name="type_message">Napišite poruku...</string>
+
+    <!-- Error messages -->
+    <string name="error_already_friends">Ovaj korisnik je već vaš prijatelj</string>
+    <string name="error_cannot_add_self">Ne možete dodati sebe kao prijatelja</string>
+    <string name="error_already_in_alliance">Već ste član saveza</string>
+    <string name="error_cannot_leave_during_mission">Ne možete napustiti savez tokom aktivne misije</string>
+    <string name="error_no_permission_delete_alliance">Nemate dozvolu za brisanje saveza</string>
 </resources>

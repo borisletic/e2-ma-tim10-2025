@@ -1,49 +1,73 @@
 package com.example.ma2025.data.models;
 
-public class Friend {
-    private String friendId;
-    private String username;
-    private String avatar;
-    private int level;
-    private String title;
-    private int pp;
-    private long addedTime;
-    private FriendshipStatus status;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
-    public enum FriendshipStatus {
-        PENDING, ACCEPTED, BLOCKED
-    }
+public class Friend {
+    private String id;
+    private String friendId;
+    private String friendUsername;
+    private String friendAvatar;
+    private int friendLevel;
+    private String friendTitle;
+    private String status; // "pending", "accepted", "blocked"
+    private Date createdAt;
+    private Date updatedAt;
 
     public Friend() {}
 
-    public Friend(String friendId, String username, String avatar, int level, String title, int pp) {
+    public Friend(String friendId, String friendUsername, String friendAvatar,
+                  int friendLevel, String friendTitle) {
         this.friendId = friendId;
-        this.username = username;
-        this.avatar = avatar;
-        this.level = level;
-        this.title = title;
-        this.pp = pp;
-        this.addedTime = System.currentTimeMillis();
-        this.status = FriendshipStatus.PENDING;
+        this.friendUsername = friendUsername;
+        this.friendAvatar = friendAvatar;
+        this.friendLevel = friendLevel;
+        this.friendTitle = friendTitle;
+        this.status = "accepted";
+        this.createdAt = new Date();
+        this.updatedAt = new Date();
     }
 
-    // Getteri
-    public String getFriendId() { return friendId; }
-    public String getUsername() { return username; }
-    public String getAvatar() { return avatar; }
-    public int getLevel() { return level; }
-    public String getTitle() { return title; }
-    public int getPp() { return pp; }
-    public long getAddedTime() { return addedTime; }
-    public FriendshipStatus getStatus() { return status; }
+    // Getters and Setters
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    // Setteri
+    public String getFriendId() { return friendId; }
     public void setFriendId(String friendId) { this.friendId = friendId; }
-    public void setUsername(String username) { this.username = username; }
-    public void setAvatar(String avatar) { this.avatar = avatar; }
-    public void setLevel(int level) { this.level = level; }
-    public void setTitle(String title) { this.title = title; }
-    public void setPp(int pp) { this.pp = pp; }
-    public void setAddedTime(long addedTime) { this.addedTime = addedTime; }
-    public void setStatus(FriendshipStatus status) { this.status = status; }
+
+    public String getFriendUsername() { return friendUsername; }
+    public void setFriendUsername(String friendUsername) { this.friendUsername = friendUsername; }
+
+    public String getFriendAvatar() { return friendAvatar; }
+    public void setFriendAvatar(String friendAvatar) { this.friendAvatar = friendAvatar; }
+
+    public int getFriendLevel() { return friendLevel; }
+    public void setFriendLevel(int friendLevel) { this.friendLevel = friendLevel; }
+
+    public String getFriendTitle() { return friendTitle; }
+    public void setFriendTitle(String friendTitle) { this.friendTitle = friendTitle; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public Date getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
+
+    public Date getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
+    public Map<String, Object> toMap(String userId) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("userId", userId);
+        map.put("friendId", this.friendId);
+        map.put("friendUsername", this.friendUsername);
+        map.put("friendAvatar", this.friendAvatar);
+        map.put("friendLevel", this.friendLevel);
+        map.put("friendTitle", this.friendTitle);
+        map.put("status", this.status);
+        map.put("createdAt", this.createdAt);
+        map.put("updatedAt", this.updatedAt);
+        return map;
+    }
+
 }

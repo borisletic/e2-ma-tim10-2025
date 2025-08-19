@@ -1,69 +1,81 @@
 package com.example.ma2025.data.models;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class Alliance {
     private String id;
     private String name;
     private String leaderId;
+    private String leaderUsername;
     private List<String> memberIds;
-    private long createdTime;
-    private boolean hasActiveMission;
-    private SpecialMission currentMission;
+    private List<AllianceMember> members;
+    private boolean missionActive;
+    private Date createdAt;
+    private Date updatedAt;
 
     public Alliance() {
         this.memberIds = new ArrayList<>();
-        this.hasActiveMission = false;
-        this.createdTime = System.currentTimeMillis();
+        this.members = new ArrayList<>();
+        this.missionActive = false;
     }
 
-    public Alliance(String id, String name, String leaderId) {
+    public Alliance(String name, String leaderId, String leaderUsername) {
         this();
-        this.id = id;
         this.name = name;
         this.leaderId = leaderId;
-        this.memberIds.add(leaderId); // Lider je automatski član
+        this.leaderUsername = leaderUsername;
+        this.createdAt = new Date();
+        this.updatedAt = new Date();
+
+        // Add leader as first member
+        this.memberIds.add(leaderId);
     }
 
-    // Getteri
+    // Getters and Setters
     public String getId() { return id; }
-    public String getName() { return name; }
-    public String getLeaderId() { return leaderId; }
-    public List<String> getMemberIds() { return memberIds; }
-    public long getCreatedTime() { return createdTime; }
-    public boolean hasActiveMission() { return hasActiveMission; }
-    public SpecialMission getCurrentMission() { return currentMission; }
-
-    // Setteri
     public void setId(String id) { this.id = id; }
-    public void setName(String name) { this.name = name; }
-    public void setLeaderId(String leaderId) { this.leaderId = leaderId; }
-    public void setMemberIds(List<String> memberIds) { this.memberIds = memberIds; }
-    public void setCreatedTime(long createdTime) { this.createdTime = createdTime; }
-    public void setHasActiveMission(boolean hasActiveMission) { this.hasActiveMission = hasActiveMission; }
-    public void setCurrentMission(SpecialMission currentMission) { this.currentMission = currentMission; }
 
-    // Utility metode
-    public void addMember(String userId) {
-        if (!memberIds.contains(userId)) {
-            memberIds.add(userId);
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getLeaderId() { return leaderId; }
+    public void setLeaderId(String leaderId) { this.leaderId = leaderId; }
+
+    public String getLeaderUsername() { return leaderUsername; }
+    public void setLeaderUsername(String leaderUsername) { this.leaderUsername = leaderUsername; }
+
+    public List<String> getMemberIds() { return memberIds; }
+    public void setMemberIds(List<String> memberIds) { this.memberIds = memberIds; }
+
+    public List<AllianceMember> getMembers() { return members; }
+    public void setMembers(List<AllianceMember> members) { this.members = members; }
+
+    public boolean isMissionActive() { return missionActive; }
+    public void setMissionActive(boolean missionActive) { this.missionActive = missionActive; }
+
+    public Date getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
+
+    public Date getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
+
+    public void addMember(String memberId) {
+        if (!memberIds.contains(memberId)) {
+            memberIds.add(memberId);
         }
     }
 
-    public void removeMember(String userId) {
-        memberIds.remove(userId);
+    public void removeMember(String memberId) {
+        memberIds.remove(memberId);
     }
 
     public boolean isLeader(String userId) {
-        return leaderId.equals(userId);
-    }
-
-    public boolean isMember(String userId) {
-        return memberIds.contains(userId);
+        return leaderId != null && leaderId.equals(userId);
     }
 
     public int getMemberCount() {
-        return memberIds.size();
+        return memberIds != null ? memberIds.size() : 0;
     }
 }
