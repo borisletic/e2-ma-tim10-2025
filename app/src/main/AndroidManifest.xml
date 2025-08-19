@@ -54,6 +54,19 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <receiver android:name=".receivers.InvitationActionReceiver"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.friends.UserProfileActivity"
+            android:label="Profil korisnika"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.friends.AllianceChatActivity"
+            android:label="Chat saveza"
+            android:parentActivityName=".MainActivity" />
+
     </application>
 
 </manifest>
