@@ -2,6 +2,7 @@ package com.example.ma2025.ui.profile;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -23,8 +24,10 @@ import com.example.ma2025.data.preferences.PreferencesManager;
 import com.example.ma2025.databinding.FragmentProfileBinding;
 import com.example.ma2025.ui.dialogs.ChangePasswordDialog;
 import com.example.ma2025.utils.Constants;
+import com.example.ma2025.utils.DateUtils;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
@@ -32,9 +35,16 @@ import com.journeyapps.barcodescanner.BarcodeEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import com.example.ma2025.utils.EquipmentManager;
-import com.example.ma2025.ui.equipment.adapter.EquipmentAdapter;
-import com.example.ma2025.ui.equipment.adapter.EquipmentAdapter;
-import com.example.ma2025.utils.EquipmentManager;
+// DODANO ZA STATISTIKE:
+import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.charts.PieChart;
+import com.github.mikephil.charting.components.Description;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.data.*;
+import com.github.mikephil.charting.formatter.ValueFormatter;
+import com.github.mikephil.charting.utils.ColorTemplate;
+import java.util.*;
 
 public class ProfileFragment extends Fragment {
 
@@ -66,6 +76,8 @@ public class ProfileFragment extends Fragment {
 
             setupClickListeners();
             setupEquipmentRecyclerView();
+            // DODANO ZA STATISTIKE:
+            setupCharts();
 
             // Show default data first, then try to load from Firebase
             displayDefaultUserData();
@@ -90,18 +102,95 @@ public class ProfileFragment extends Fragment {
         }
     }
 
-    private void initializeComponents() {
+    // DODANO ZA STATISTIKE:
+    private void setupCharts() {
         try {
-            mAuth = FirebaseAuth.getInstance();
-            db = FirebaseFirestore.getInstance();
-            preferencesManager = new PreferencesManager(getContext());
-            activeEquipment = new ArrayList<>();
-
-            Log.d(TAG, "Components initialized successfully");
+            setupTasksDonutChart();
+            setupCategoryBarChart();
+            setupXpLineChart();
+            setupDifficultyLineChart();
 
         } catch (Exception e) {
-            Log.e(TAG, "Error initializing components", e);
-            throw e;
+            Log.e(TAG, "Error setting up charts", e);
+        }
+    }
+
+    // DODANO ZA STATISTIKE:
+    private void setupTasksDonutChart() {
+        try {
+            if (binding.chartTasksDonut != null) {
+                PieChart chart = binding.chartTasksDonut;
+
+                Description description = new Description();
+                description.setText("");
+                chart.setDescription(description);
+                chart.setHoleRadius(40f);
+                chart.setTransparentCircleRadius(45f);
+                chart.setDrawCenterText(false);
+                chart.setRotationEnabled(false);
+                chart.getLegend().setEnabled(true);
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up tasks donut chart", e);
+        }
+    }
+
+    // DODANO ZA STATISTIKE:
+    private void setupCategoryBarChart() {
+        try {
+            if (binding.chartCategoryBar != null) {
+                BarChart chart = binding.chartCategoryBar;
+
+                Description description = new Description();
+                description.setText("");
+                chart.setDescription(description);
+                chart.setDrawGridBackground(false);
+                chart.getAxisRight().setEnabled(false);
+
+                XAxis xAxis = chart.getXAxis();
+                xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+                xAxis.setDrawGridLines(false);
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up category bar chart", e);
+        }
+    }
+
+    // DODANO ZA STATISTIKE:
+    private void setupXpLineChart() {
+        try {
+            if (binding.chartXpLine != null) {
+                LineChart chart = binding.chartXpLine;
+
+                Description description = new Description();
+                description.setText("");
+                chart.setDescription(description);
+                chart.setDrawGridBackground(false);
+                chart.getAxisRight().setEnabled(false);
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up XP line chart", e);
+        }
+    }
+
+    // DODANO ZA STATISTIKE:
+    private void setupDifficultyLineChart() {
+        try {
+            if (binding.chartDifficultyLine != null) {
+                LineChart chart = binding.chartDifficultyLine;
+
+                Description description = new Description();
+                description.setText("");
+                chart.setDescription(description);
+                chart.setDrawGridBackground(false);
+                chart.getAxisRight().setEnabled(false);
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up difficulty line chart", e);
         }
     }
 
@@ -109,8 +198,6 @@ public class ProfileFragment extends Fragment {
         if (binding == null) return;
 
         try {
-
-
             binding.btnChangePassword.setOnClickListener(v -> {
                 try {
                     ChangePasswordDialog dialog = new ChangePasswordDialog();
@@ -121,50 +208,41 @@ public class ProfileFragment extends Fragment {
                 }
             });
 
-            binding.cardQrCode.setOnClickListener(v -> {
-                try {
-                    if (binding.ivQrCode.getVisibility() == View.VISIBLE) {
-                        binding.ivQrCode.setVisibility(View.GONE);
-                        binding.tvQrHint.setText("Pritisnite za prikaz QR koda");
-                    } else {
-                        binding.ivQrCode.setVisibility(View.VISIBLE);
-                        binding.tvQrHint.setText("Podelite ovaj QR kod sa prijateljima");
+            if (binding.cardQrCode != null) {
+                binding.cardQrCode.setOnClickListener(v -> {
+                    try {
+                        if (binding.ivQrCode.getVisibility() == View.VISIBLE) {
+                            binding.ivQrCode.setVisibility(View.GONE);
+                            binding.tvQrHint.setText("Pritisnite za prikaz QR koda");
+                        } else {
+                            binding.ivQrCode.setVisibility(View.VISIBLE);
+                            binding.tvQrHint.setText("Podelite ovaj QR kod sa prijateljima");
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error toggling QR code", e);
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error toggling QR code", e);
-                }
-            });
-            binding.btnGoToEquipment.setOnClickListener(v -> {
-                try {
-                    // Navigate to Equipment tab
-                    if (getActivity() instanceof MainActivity) {
-                        MainActivity mainActivity = (MainActivity) getActivity();
-                        // Assuming you have a method to switch to equipment tab
-                        mainActivity.navigateToEquipment(); // You'll need to implement this
+                });
+            }
+
+            if (binding.btnGoToEquipment != null) {
+                binding.btnGoToEquipment.setOnClickListener(v -> {
+                    try {
+                        // Navigate to Equipment tab
+                        if (getActivity() instanceof MainActivity) {
+                            MainActivity mainActivity = (MainActivity) getActivity();
+                            mainActivity.navigateToEquipment();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error navigating to equipment", e);
+                        Toast.makeText(getContext(), "Greška pri navigaciji", Toast.LENGTH_SHORT).show();
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error navigating to equipment", e);
-                    Toast.makeText(getContext(), "Greška pri navigaciji", Toast.LENGTH_SHORT).show();
-                }
-            });
-            binding.btnGoToEquipment.setOnClickListener(v -> {
-                try {
-                    // Navigate to Equipment tab
-                    if (getActivity() instanceof MainActivity) {
-                        MainActivity mainActivity = (MainActivity) getActivity();
-                        mainActivity.navigateToEquipment();
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error navigating to equipment", e);
-                    Toast.makeText(getContext(), "Greška pri navigaciji", Toast.LENGTH_SHORT).show();
-                }
-            });
+                });
+            }
+
         } catch (Exception e) {
             Log.e(TAG, "Error setting up click listeners", e);
         }
     }
-
-
 
     private void displayDefaultUserData() {
         try {
@@ -192,6 +270,13 @@ public class ProfileFragment extends Fragment {
 
             // Show empty equipment state
             displayEquipment(new ArrayList<>());
+
+            // DODANO ZA STATISTIKE - postavi default vrednosti:
+            if (binding.tvCompletionRate != null) binding.tvCompletionRate.setText("0%");
+            if (binding.tvSkippedTasks != null) binding.tvSkippedTasks.setText("0");
+            if (binding.tvCanceledTasks != null) binding.tvCanceledTasks.setText("0");
+            if (binding.tvSpecialMissionsStarted != null) binding.tvSpecialMissionsStarted.setText("0");
+            if (binding.tvSpecialMissionsCompleted != null) binding.tvSpecialMissionsCompleted.setText("0");
 
             Log.d(TAG, "Default user data displayed");
 
@@ -243,6 +328,8 @@ public class ProfileFragment extends Fragment {
                                 cacheUserData(currentUser);
                                 generateQRCode(userId);
                                 loadUserEquipment();
+                                // DODANO ZA STATISTIKE:
+                                loadStatistics();
                                 Log.d(TAG, "User data loaded successfully");
                             } else {
                                 Log.e(TAG, "Failed to parse user object");
@@ -270,6 +357,8 @@ public class ProfileFragment extends Fragment {
             // Refresh data when fragment becomes visible
             if (currentUser != null) {
                 loadUserEquipment();
+                // DODANO ZA STATISTIKE:
+                loadStatistics();
             }
             Log.d(TAG, "ProfileFragment resumed");
 
@@ -305,6 +394,8 @@ public class ProfileFragment extends Fragment {
                         displayUserData(newUser);
                         cacheUserData(newUser);
                         generateQRCode(userId);
+                        // DODANO ZA STATISTIKE:
+                        loadStatistics();
                     })
                     .addOnFailureListener(e -> {
                         Log.e(TAG, "Error creating user document", e);
@@ -568,6 +659,270 @@ public class ProfileFragment extends Fragment {
             Log.e(TAG, "Error generating QR code", e);
         } catch (Exception e) {
             Log.e(TAG, "Unexpected error generating QR code", e);
+        }
+    }
+
+    // ========== DODANO ZA STATISTIKE ==========
+
+    private void loadStatistics() {
+        try {
+            if (currentUser == null) return;
+
+            displayBasicStats();
+            loadTasksDonutChart();
+            loadCategoryBarChart();
+            loadXpLineChart();
+            loadDifficultyLineChart();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading statistics", e);
+        }
+    }
+
+    private void displayBasicStats() {
+        try {
+            if (currentUser == null || binding == null) return;
+
+            // Calculate active days
+            int activeDays = calculateActiveDays();
+            if (binding.tvActiveDays != null) {
+                binding.tvActiveDays.setText(String.valueOf(activeDays));
+            }
+
+            // Display basic user stats - proverava da li postoje
+            if (binding.tvTotalTasks != null) {
+                binding.tvTotalTasks.setText(String.valueOf(currentUser.getTotalTasksCreated()));
+            }
+            if (binding.tvCompletedTasks != null) {
+                binding.tvCompletedTasks.setText(String.valueOf(currentUser.getTotalTasksCompleted()));
+            }
+            if (binding.tvSkippedTasks != null) {
+                binding.tvSkippedTasks.setText(String.valueOf(currentUser.getTotalTasksSkipped()));
+            }
+            if (binding.tvCanceledTasks != null) {
+                binding.tvCanceledTasks.setText(String.valueOf(currentUser.getTotalTasksCanceled()));
+            }
+            if (binding.tvLongestStreak != null) {
+                binding.tvLongestStreak.setText(String.valueOf(currentUser.getLongestStreak()));
+            }
+
+            // Calculate completion rate
+            double completionRate = currentUser.getTotalTasksCreated() > 0 ?
+                    (double) currentUser.getTotalTasksCompleted() / currentUser.getTotalTasksCreated() * 100 : 0;
+            if (binding.tvCompletionRate != null) {
+                binding.tvCompletionRate.setText(String.format("%.1f%%", completionRate));
+            }
+
+            // Special missions - samo ako postoje u layout-u
+            if (binding.tvSpecialMissionsStarted != null) {
+                binding.tvSpecialMissionsStarted.setText("0");
+            }
+            if (binding.tvSpecialMissionsCompleted != null) {
+                binding.tvSpecialMissionsCompleted.setText("0");
+            }
+
+            Log.d(TAG, "Basic stats displayed successfully");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error displaying basic stats", e);
+        }
+    }
+
+    private int calculateActiveDays() {
+        try {
+            // Simple calculation based on registration time
+            long registrationTime = currentUser.getRegistrationTime();
+            if (registrationTime == 0) return currentUser.getActiveDays();
+
+            long currentTime = System.currentTimeMillis();
+            long daysSinceRegistration = (currentTime - registrationTime) / (1000 * 60 * 60 * 24);
+
+            return Math.max(1, (int) Math.min(daysSinceRegistration + 1, currentUser.getActiveDays()));
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error calculating active days", e);
+            return Math.max(1, currentUser.getActiveDays());
+        }
+    }
+
+    private void loadTasksDonutChart() {
+        try {
+            if (binding == null || binding.chartTasksDonut == null) {
+                Log.d(TAG, "Tasks donut chart not available in layout");
+                return;
+            }
+
+            PieChart chart = binding.chartTasksDonut;
+
+            List<PieEntry> entries = new ArrayList<>();
+
+            // Mock podaci umesto realnih
+            if (currentUser != null) {
+                int completed = currentUser.getTotalTasksCompleted();
+                int skipped = currentUser.getTotalTasksSkipped();
+                int canceled = currentUser.getTotalTasksCanceled();
+
+                // Ako nema realnih podataka, koristi mock podatke
+                if (completed == 0 && skipped == 0 && canceled == 0) {
+                    entries.add(new PieEntry(12, "Završeni"));
+                    entries.add(new PieEntry(3, "Preskočeni"));
+                    entries.add(new PieEntry(2, "Otkazani"));
+                } else {
+                    if (completed > 0) entries.add(new PieEntry(completed, "Završeni"));
+                    if (skipped > 0) entries.add(new PieEntry(skipped, "Preskočeni"));
+                    if (canceled > 0) entries.add(new PieEntry(canceled, "Otkazani"));
+                }
+            } else {
+                // Default mock podaci
+                entries.add(new PieEntry(15, "Završeni"));
+                entries.add(new PieEntry(4, "Preskočeni"));
+                entries.add(new PieEntry(1, "Otkazani"));
+            }
+
+            if (!entries.isEmpty()) {
+                PieDataSet dataSet = new PieDataSet(entries, "Zadaci");
+                dataSet.setColors(
+                        Color.parseColor("#4CAF50"), // Green for completed
+                        Color.parseColor("#FF9800"), // Orange for skipped
+                        Color.parseColor("#F44336")  // Red for canceled
+                );
+
+                // Stilizovanje
+                dataSet.setValueTextSize(12f);
+                dataSet.setValueTextColor(Color.WHITE);
+
+                PieData data = new PieData(dataSet);
+                chart.setData(data);
+
+                // Ukloni opis ispod
+                Description desc = new Description();
+                desc.setText("");
+                chart.setDescription(desc);
+
+                chart.invalidate();
+
+                Log.d(TAG, "Tasks donut chart loaded with " + entries.size() + " entries");
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading tasks donut chart", e);
+        }
+    }
+
+    private void loadCategoryBarChart() {
+        try {
+            if (binding == null || binding.chartCategoryBar == null) {
+                Log.d(TAG, "Category bar chart not available in layout");
+                return;
+            }
+
+            BarChart chart = binding.chartCategoryBar;
+
+            // Mock podaci za kategorije
+            List<BarEntry> entries = new ArrayList<>();
+            entries.add(new BarEntry(0f, 8f)); // Zdravlje
+            entries.add(new BarEntry(1f, 12f)); // Učenje
+            entries.add(new BarEntry(2f, 5f)); // Zabava
+            entries.add(new BarEntry(3f, 7f)); // Sređivanje
+            entries.add(new BarEntry(4f, 3f)); // Sport
+
+            BarDataSet dataSet = new BarDataSet(entries, "Zadaci po kategoriji");
+            dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
+            dataSet.setValueTextSize(10f);
+
+            BarData data = new BarData(dataSet);
+            data.setBarWidth(0.8f);
+
+            chart.setData(data);
+
+            // Stilizovanje chart-a
+            Description desc = new Description();
+            desc.setText("");
+            chart.setDescription(desc);
+
+            // X-axis labels
+            XAxis xAxis = chart.getXAxis();
+            xAxis.setValueFormatter(new ValueFormatter() {
+                private String[] labels = {"Zdravlje", "Učenje", "Zabava", "Sređivanje", "Sport"};
+
+                @Override
+                public String getFormattedValue(float value) {
+                    int index = (int) value;
+                    if (index >= 0 && index < labels.length) {
+                        return labels[index];
+                    }
+                    return "";
+                }
+            });
+            xAxis.setGranularity(1f);
+            xAxis.setGranularityEnabled(true);
+
+            chart.invalidate();
+
+            Log.d(TAG, "Category bar chart loaded with " + entries.size() + " categories");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading category bar chart", e);
+        }
+    }
+
+    private void loadXpLineChart() {
+        try {
+            // Proveri da li chart postoji u layout-u
+            if (binding == null || binding.chartXpLine == null) {
+                Log.d(TAG, "XP line chart not available in layout");
+                return;
+            }
+
+            // TODO: Load actual XP data from database
+            // For now, show placeholder data
+            LineChart chart = binding.chartXpLine;
+
+            List<Entry> entries = new ArrayList<>();
+            for (int i = 0; i < 7; i++) {
+                entries.add(new Entry(i, (float) (Math.random() * 50)));
+            }
+
+            LineDataSet dataSet = new LineDataSet(entries, "XP po danu");
+            dataSet.setColor(Color.parseColor("#2196F3"));
+            dataSet.setCircleColor(Color.parseColor("#2196F3"));
+
+            LineData data = new LineData(dataSet);
+            chart.setData(data);
+            chart.invalidate();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading XP line chart", e);
+        }
+    }
+
+    private void loadDifficultyLineChart() {
+        try {
+            // Proveri da li chart postoji u layout-u
+            if (binding == null || binding.chartDifficultyLine == null) {
+                Log.d(TAG, "Difficulty line chart not available in layout");
+                return;
+            }
+
+            // TODO: Load actual difficulty data from database
+            // For now, show placeholder data
+            LineChart chart = binding.chartDifficultyLine;
+
+            List<Entry> entries = new ArrayList<>();
+            for (int i = 0; i < 7; i++) {
+                entries.add(new Entry(i, (float) (Math.random() * 10 + 5)));
+            }
+
+            LineDataSet dataSet = new LineDataSet(entries, "Prosečna težina");
+            dataSet.setColor(Color.parseColor("#FF5722"));
+            dataSet.setCircleColor(Color.parseColor("#FF5722"));
+
+            LineData data = new LineData(dataSet);
+            chart.setData(data);
+            chart.invalidate();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading difficulty line chart", e);
         }
     }
 
