@@ -18,6 +18,7 @@
     <!-- Profile -->
     <string name="profile">Profil</string>
     <string name="statistics">Statistike</string>
+    <string name="zadatak">Zadatak</string>
     <string name="levels">Nivoi</string>
     <string name="equipment">Oprema</string>
     <string name="friends">Prijatelji</string>
@@ -41,6 +42,26 @@
     <string name="total_tasks">Ukupno zadataka</string>
     <string name="longest_streak">Najduži niz</string>
 
+    <!-- Task Management -->
+    <string name="create_task">Kreiraj zadatak</string>
+    <string name="edit_task">Uredi zadatak</string>
+    <string name="delete_task">Obriši zadatak</string>
+    <string name="mark_complete">Označi kao završen</string>
+    <string name="task_title">Naziv zadatka</string>
+    <string name="task_description">Opis zadatka</string>
+    <string name="task_category">Kategorija</string>
+    <string name="task_difficulty">Težina</string>
+    <string name="task_importance">Bitnost</string>
+    <string name="task_frequency">Učestalost</string>
+    <string name="one_time">Jednokratno</string>
+    <string name="repeating">Ponavljajuće</string>
+    <string name="daily">Dnevno</string>
+    <string name="weekly">Nedeljno</string>
+    <string name="very_easy">Veoma lako (1 XP)</string>
+    <string name="easy">Lako (3 XP)</string>
+    <string name="hard">Teško (7 XP)</string>
+    <string name="extremely_hard">Ekstremno teško (20 XP)</string>
+
     <!-- Navigation -->
     <string name="settings">Podešavanja</string>
     <string name="logout">Odjavi se</string>
@@ -59,26 +80,10 @@
     <string name="finish">Završi</string>
     <string name="coming_soon">Uskoro dostupno</string>
     <string name="feature_coming_soon">Ova funkcionalnost će biti implementirana u sledećoj verziji.</string>
+
     <!-- Friends and Alliance -->
     <string name="friends_and_alliance">Prijatelji i savez</string>
     <string name="search_users">Pretraži korisnike</string>
     <string name="scan_qr_code">Skeniraj QR kod</string>
     <string name="add_friend">Dodaj prijatelja</string>
-    <string name="create_alliance">Kreiraj savez</string>
-    <string name="invite_to_alliance">Pozovi u savez</string>
-    <string name="alliance_chat">Chat saveza</string>
-    <string name="leave_alliance">Napusti savez</string>
-    <string name="delete_alliance">Obriši savez</string>
-    <string name="alliance_invitations">Pozivi za savez</string>
-    <string name="accept_invitation">Prihvati poziv</string>
-    <string name="decline_invitation">Odbij poziv</string>
-    <string name="send_message">Pošalji poruku</string>
-    <string name="type_message">Napišite poruku...</string>
-
-    <!-- Error messages -->
-    <string name="error_already_friends">Ovaj korisnik je već vaš prijatelj</string>
-    <string name="error_cannot_add_self">Ne možete dodati sebe kao prijatelja</string>
-    <string name="error_already_in_alliance">Već ste član saveza</string>
-    <string name="error_cannot_leave_during_mission">Ne možete napustiti savez tokom aktivne misije</string>
-    <string name="error_no_permission_delete_alliance">Nemate dozvolu za brisanje saveza</string>
 </resources>
