@@ -1,10 +1,13 @@
 package com.example.ma2025;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,6 +16,9 @@ import com.example.ma2025.data.DatabaseManager;
 import com.example.ma2025.data.preferences.PreferencesManager;
 import com.example.ma2025.databinding.ActivityMainBinding;
 import com.example.ma2025.ui.auth.LoginActivity;
+import com.example.ma2025.ui.boss.BossFragment;
+import com.example.ma2025.ui.categories.CategoriesFragment;
+import com.example.ma2025.ui.missions.MissionsFragment;
 import com.example.ma2025.ui.profile.ProfileFragment;
 import com.example.ma2025.ui.statistics.StatisticsFragment;
 import com.example.ma2025.ui.levels.LevelsFragment;
@@ -23,6 +29,9 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -32,6 +41,10 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private PreferencesManager preferencesManager;
     private DatabaseManager databaseManager;
+
+    private LinearLayout currentSelectedItem;
+    private int currentSelectedColor;
+    private int defaultColor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +59,13 @@ public class MainActivity extends AppCompatActivity {
 
             // Initialize preferences
             preferencesManager = new PreferencesManager(this);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                currentSelectedColor = getResources().getColor(R.color.primary_color, getTheme());
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                defaultColor = getResources().getColor(R.color.text_secondary, getTheme());
+            }
 
             Log.d(TAG, "MainActivity initialized successfully");
 
@@ -65,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
             // Load default fragment
             if (savedInstanceState == null) {
                 loadFragment(new ProfileFragment());
-                binding.bottomNavigation.setSelectedItemId(R.id.nav_profile);
+                setSelectedNavigationItem(binding.navProfile);
             }
 
             // Track app usage
@@ -121,29 +141,45 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         try {
-            binding.bottomNavigation.setOnItemSelectedListener(item -> {
-                Fragment selectedFragment = null;
+            // Setup click listeners for all navigation items
+            binding.navProfile.setOnClickListener(v -> {
+                loadFragment(new ProfileFragment());
+                setSelectedNavigationItem(binding.navProfile);
+            });
 
-                try {
-                    if (item.getItemId() == R.id.nav_profile) {
-                        selectedFragment = new ProfileFragment();
-                    } else if (item.getItemId() == R.id.nav_statistics) {
-                        selectedFragment = new StatisticsFragment();
-                    } else if (item.getItemId() == R.id.nav_levels) {
-                        selectedFragment = new LevelsFragment();
-                    } else if (item.getItemId() == R.id.nav_equipment) {
-                        selectedFragment = new EquipmentFragment();
-                    } else if (item.getItemId() == R.id.nav_friends) {
-                        selectedFragment = new FriendsFragment();
-                    }
+            binding.navTasks.setOnClickListener(v -> {
+                loadFragment(new StatisticsFragment()); // StatisticsFragment is now TaskFragment
+                setSelectedNavigationItem(binding.navTasks);
+            });
 
-                    return loadFragment(selectedFragment);
+            binding.navCategories.setOnClickListener(v -> {
+                loadFragment(new CategoriesFragment());
+                setSelectedNavigationItem(binding.navCategories);
+            });
 
-                } catch (Exception e) {
-                    Log.e(TAG, "Error in bottom navigation selection", e);
-                    Toast.makeText(MainActivity.this, "Greška pri učitavanju stranice", Toast.LENGTH_SHORT).show();
-                    return false;
-                }
+            binding.navLevels.setOnClickListener(v -> {
+                loadFragment(new LevelsFragment());
+                setSelectedNavigationItem(binding.navLevels);
+            });
+
+            binding.navEquipment.setOnClickListener(v -> {
+                loadFragment(new EquipmentFragment());
+                setSelectedNavigationItem(binding.navEquipment);
+            });
+
+            binding.navFriends.setOnClickListener(v -> {
+                loadFragment(new FriendsFragment());
+                setSelectedNavigationItem(binding.navFriends);
+            });
+
+            binding.navBoss.setOnClickListener(v -> {
+                loadFragment(new BossFragment());
+                setSelectedNavigationItem(binding.navBoss);
+            });
+
+            binding.navMissions.setOnClickListener(v -> {
+                loadFragment(new MissionsFragment());
+                setSelectedNavigationItem(binding.navMissions);
             });
 
         } catch (Exception e) {
@@ -298,16 +334,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void navigateToEquipment() {
         try {
-            // Switch to equipment tab
-            binding.bottomNavigation.setSelectedItemId(R.id.nav_equipment);
-
-            // Load equipment fragment
-            Fragment fragment = new EquipmentFragment();
-            getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.fragment_container, fragment)
-                    .commit();
-
+            loadFragment(new EquipmentFragment());
+            setSelectedNavigationItem(binding.navEquipment);
         } catch (Exception e) {
             Log.e(TAG, "Error navigating to equipment", e);
         }
@@ -383,6 +411,76 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error in onResume", e);
         }
+    }
+
+    private void setSelectedNavigationItem(LinearLayout selectedItem) {
+        try {
+            // Reset previous selection
+            if (currentSelectedItem != null) {
+                setNavigationItemStyle(currentSelectedItem, defaultColor);
+            }
+
+            // Set new selection
+            currentSelectedItem = selectedItem;
+            setNavigationItemStyle(selectedItem, currentSelectedColor);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting selected navigation item", e);
+        }
+    }
+
+    private void setNavigationItemStyle(LinearLayout item, int color) {
+        try {
+            // Find ImageView and TextView in the item
+            ImageView icon = (ImageView) item.getChildAt(0);
+            TextView text = (TextView) item.getChildAt(1);
+
+            if (icon != null) {
+                icon.setColorFilter(color);
+            }
+            if (text != null) {
+                text.setTextColor(color);
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting navigation item style", e);
+        }
+    }
+
+    private Fragment createPlaceholderFragment(String title) {
+        // Create a simple placeholder fragment for features not yet implemented
+        return new Fragment() {
+            @Override
+            public android.view.View onCreateView(android.view.LayoutInflater inflater,
+                                                  android.view.ViewGroup container, Bundle savedInstanceState) {
+
+                LinearLayout layout = new LinearLayout(getContext());
+                layout.setOrientation(LinearLayout.VERTICAL);
+                layout.setGravity(android.view.Gravity.CENTER);
+                layout.setPadding(32, 32, 32, 32);
+
+                TextView titleView = new TextView(getContext());
+                titleView.setText(title);
+                titleView.setTextSize(20);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    titleView.setTextColor(getResources().getColor(R.color.text_primary, getTheme()));
+                }
+                titleView.setTextAlignment(android.view.View.TEXT_ALIGNMENT_CENTER);
+
+                TextView subtitle = new TextView(getContext());
+                subtitle.setText("Uskoro dostupno");
+                subtitle.setTextSize(16);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    subtitle.setTextColor(getResources().getColor(R.color.text_secondary, getTheme()));
+                }
+                subtitle.setTextAlignment(android.view.View.TEXT_ALIGNMENT_CENTER);
+
+                layout.addView(titleView);
+                layout.addView(subtitle);
+
+                return layout;
+            }
+        };
     }
 
     @Override
