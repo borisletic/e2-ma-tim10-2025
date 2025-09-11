@@ -22,7 +22,7 @@ public class StatisticsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         // Using placeholder layout - Student 2 should replace this with actual task management layout
-        return inflater.inflate(R.layout.fragment_placeholder, container, false);
+        return inflater.inflate(R.layout.fragment_create_task, container, false);
     }
 
     @Override

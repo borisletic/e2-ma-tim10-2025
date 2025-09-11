@@ -106,6 +106,18 @@ public interface TaskDao {
             "AND DATE(due_time/1000, 'unixepoch') = DATE(:date/1000, 'unixepoch')")
     LiveData<List<TaskEntity>> getActiveTasksForDate(String userId, long date);
 
+    @Query("SELECT COUNT(*) FROM tasks t " +
+            "INNER JOIN task_completions tc ON t.id = tc.task_id " +
+            "WHERE t.user_id = :userId AND t.difficulty = :difficulty " +
+            "AND tc.completion_date BETWEEN :startTime AND :endTime")
+    int getCompletedTasksCountByDifficultyAndDateRange(String userId, int difficulty, long startTime, long endTime);
+
+    @Query("SELECT COUNT(*) FROM tasks t " +
+            "INNER JOIN task_completions tc ON t.id = tc.task_id " +
+            "WHERE t.user_id = :userId AND t.importance = :importance " +
+            "AND tc.completion_date BETWEEN :startTime AND :endTime")
+    int getCompletedTasksCountByImportanceAndDateRange(String userId, int importance, long startTime, long endTime);
+
     @Query("DELETE FROM tasks")
     void deleteAll();
 

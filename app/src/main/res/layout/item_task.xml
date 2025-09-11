@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <!-- Category Color Indicator -->
+        <View
+            android:id="@+id/viewCategoryColor"
+            android:layout_width="4dp"
+            android:layout_height="40dp"
+            android:background="@color/primary_color"
+            android:layout_marginEnd="12dp" />
+
+        <!-- Task Content -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- Task Title and Status -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvTaskTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Naziv zadatka"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tvTaskStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Aktivno"
+                    android:textSize="12sp"
+                    android:textColor="@android:color/white"
+                    android:background="@color/success_color"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:layout_marginStart="8dp" />
+
+            </LinearLayout>
+
+            <!-- Task Details -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvTaskCategory"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Zdravlje"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:background="@color/background_color"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="2dp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/tvTaskDifficulty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Lak"
+                    android:textSize="12sp"
+                    android:textColor="@color/difficulty_easy"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/tvTaskImportance"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Važan"
+                    android:textSize="12sp"
+                    android:textColor="@color/importance_important"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/tvTaskXp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="6 XP"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/xp_color"
+                    android:layout_marginEnd="8dp" />
+
+            </LinearLayout>
+
+            <!-- Task Time and Date -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvTaskDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="15.09.2025"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:drawableStart="@drawable/ic_xp"
+                    android:drawablePadding="4dp"
+                    android:layout_marginEnd="12dp" />
+
+                <TextView
+                    android:id="@+id/tvTaskTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="14:30"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:drawableStart="@drawable/ic_xp"
+                    android:drawablePadding="4dp"
+                    android:layout_marginEnd="12dp" />
+
+                <TextView
+                    android:id="@+id/tvTaskRepeating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ponavljajući"
+                    android:textSize="10sp"
+                    android:textColor="@color/primary_color"
+                    android:background="@color/primary_light"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="2dp"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="8dp">
+
+            <Button
+                android:id="@+id/btnCompleteTask"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:text="✓"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:background="@color/success_color"
+                android:layout_marginBottom="4dp" />
+
+            <Button
+                android:id="@+id/btnTaskActions"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:text="⋮"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:background="@drawable/card_background" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

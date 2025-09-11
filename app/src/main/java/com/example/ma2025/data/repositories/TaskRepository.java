@@ -1,4 +1,4 @@
-// Fixed TaskRepository.java - Corrected query usage
+// Fixed TaskRepository.java - Corrected XP quotas with weekly/monthly limits
 package com.example.ma2025.data.repositories;
 
 import android.content.Context;
@@ -55,6 +55,39 @@ public class TaskRepository {
 
     // ========== TASK OPERATIONS ==========
 
+    public LiveData<TaskEntity> getTaskById(long taskId) {
+        return taskDao.getTaskById(taskId);
+    }
+
+    public TaskEntity getTaskByIdSync(long taskId) {
+        return taskDao.getTaskByIdSync(taskId);
+    }
+
+    public LiveData<List<TaskEntity>> getTasksByCategory(String userId, long categoryId) {
+        return taskDao.getTasksByCategory(userId, categoryId);
+    }
+
+    public List<TaskEntity> getOverdueTasks(String userId) {
+        return taskDao.getOverdueTasks(userId, System.currentTimeMillis());
+    }
+
+    public List<TaskEntity> getRepeatingTasks(String userId) {
+        return taskDao.getRepeatingTasks(userId);
+    }
+
+    // For calendar view - get tasks for specific date
+    public LiveData<List<TaskEntity>> getTasksForDate(String userId, long date) {
+        long startOfDay = DateUtils.getStartOfDay(date);
+        long endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+        return taskDao.getTasksForDateRange(userId, startOfDay, endOfDay);
+    }
+
+    // Get tasks for current and future dates (for list view)
+    public LiveData<List<TaskEntity>> getCurrentAndFutureTasks(String userId) {
+        long now = System.currentTimeMillis();
+        return taskDao.getTasksForDateRange(userId, now, Long.MAX_VALUE);
+    }
+
     public void insertTask(TaskEntity task, OnTaskInsertedCallback callback) {
         executor.execute(() -> {
             try {
@@ -110,7 +143,7 @@ public class TaskRepository {
     public void completeTask(long taskId, String userId, OnTaskCompletedCallback callback) {
         executor.execute(() -> {
             try {
-                // FIXED: Use synchronous method to get task
+                // Use synchronous method to get task
                 TaskEntity task = taskDao.getTaskByIdSync(taskId);
                 if (task == null || task.isCompleted()) {
                     if (callback != null) {
@@ -129,7 +162,7 @@ public class TaskRepository {
                 // Calculate XP
                 int xpEarned = task.calculateXpValue(userProgress.currentLevel);
 
-                // Check daily quotas
+                // Check quotas (daily, weekly, monthly)
                 if (!canEarnXpForTask(task, userId)) {
                     xpEarned = 0; // Exceeds quota, no XP
                 }
@@ -181,35 +214,109 @@ public class TaskRepository {
     }
 
     private boolean canEarnXpForTask(TaskEntity task, String userId) {
-        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
+        // Check difficulty quota
+        if (!checkDifficultyQuota(task.difficulty, userId)) {
+            return false;
+        }
 
-        // Check difficulty quota - FIXED: Now uses correct query with JOIN
-        int difficultyCount = taskDao.getCompletedTasksCountByDifficultyAndDate(userId, task.difficulty, today);
-        int difficultyLimit = getDifficultyDailyLimit(task.difficulty);
+        // Check importance quota
+        if (!checkImportanceQuota(task.importance, userId)) {
+            return false;
+        }
 
-        // Check importance quota - FIXED: Now uses correct query with JOIN
-        int importanceCount = taskDao.getCompletedTasksCountByImportanceAndDate(userId, task.importance, today);
-        int importanceLimit = getImportanceDailyLimit(task.importance);
-
-        return difficultyCount < difficultyLimit && importanceCount < importanceLimit;
+        return true;
     }
 
-    private int getDifficultyDailyLimit(int difficulty) {
+    private boolean checkDifficultyQuota(int difficulty, String userId) {
         switch (difficulty) {
-            case TaskEntity.DIFFICULTY_VERY_EASY: return 5; // daily
-            case TaskEntity.DIFFICULTY_EASY: return 5; // daily
-            case TaskEntity.DIFFICULTY_HARD: return 2; // daily
-            case TaskEntity.DIFFICULTY_EXTREME: return 1; // weekly (converted to daily = 1/7)
+            case TaskEntity.DIFFICULTY_VERY_EASY:
+                // Veoma lak - max 5 dnevno
+                return getDailyCompletedCount(userId, difficulty) < 5;
+
+            case TaskEntity.DIFFICULTY_EASY:
+                // Lak - max 5 dnevno
+                return getDailyCompletedCount(userId, difficulty) < 5;
+
+            case TaskEntity.DIFFICULTY_HARD:
+                // Težak - max 2 dnevno
+                return getDailyCompletedCount(userId, difficulty) < 2;
+
+            case TaskEntity.DIFFICULTY_EXTREME:
+                // Ekstremno težak - max 1 nedeljno
+                return getWeeklyCompletedCount(userId, difficulty) < 1;
+
+            default:
+                return true;
+        }
+    }
+
+    private boolean checkImportanceQuota(int importance, String userId) {
+        switch (importance) {
+            case TaskEntity.IMPORTANCE_NORMAL:
+                // Normalan - max 5 dnevno
+                return getDailyCompletedCountByImportance(userId, importance) < 5;
+
+            case TaskEntity.IMPORTANCE_IMPORTANT:
+                // Važan - max 5 dnevno
+                return getDailyCompletedCountByImportance(userId, importance) < 5;
+
+            case TaskEntity.IMPORTANCE_VERY_IMPORTANT:
+                // Ekstremno važan - max 2 dnevno
+                return getDailyCompletedCountByImportance(userId, importance) < 2;
+
+            case TaskEntity.IMPORTANCE_SPECIAL:
+                // Specijalan - max 1 mesečno
+                return getMonthlyCompletedCountByImportance(userId, importance) < 1;
+
+            default:
+                return true;
+        }
+    }
+
+    private int getDailyCompletedCount(String userId, int difficulty) {
+        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
+        long tomorrow = today + 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByDifficultyAndDateRange(userId, difficulty, today, tomorrow);
+    }
+
+    private int getDailyCompletedCountByImportance(String userId, int importance) {
+        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
+        long tomorrow = today + 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, today, tomorrow);
+    }
+
+    private int getWeeklyCompletedCount(String userId, int difficulty) {
+        long startOfWeek = DateUtils.getStartOfWeek(System.currentTimeMillis());
+        long endOfWeek = startOfWeek + 7 * 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByDifficultyAndDateRange(userId, difficulty, startOfWeek, endOfWeek);
+    }
+
+    private int getMonthlyCompletedCountByImportance(String userId, int importance) {
+        long startOfMonth = DateUtils.getStartOfMonth(System.currentTimeMillis());
+        long endOfMonth = DateUtils.getEndOfMonth(System.currentTimeMillis());
+        return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, startOfMonth, endOfMonth);
+    }
+
+    // ========== DEPRECATED METHODS (keeping for compatibility) ==========
+
+    private int getDifficultyDailyLimit(int difficulty) {
+        // This method is now deprecated but kept for backward compatibility
+        switch (difficulty) {
+            case TaskEntity.DIFFICULTY_VERY_EASY: return 5;
+            case TaskEntity.DIFFICULTY_EASY: return 5;
+            case TaskEntity.DIFFICULTY_HARD: return 2;
+            case TaskEntity.DIFFICULTY_EXTREME: return 1; // Note: This is actually weekly
             default: return 5;
         }
     }
 
     private int getImportanceDailyLimit(int importance) {
+        // This method is now deprecated but kept for backward compatibility
         switch (importance) {
-            case TaskEntity.IMPORTANCE_NORMAL: return 5; // daily
-            case TaskEntity.IMPORTANCE_IMPORTANT: return 5; // daily
-            case TaskEntity.IMPORTANCE_VERY_IMPORTANT: return 2; // daily
-            case TaskEntity.IMPORTANCE_SPECIAL: return 1; // monthly (converted to daily = 1/30)
+            case TaskEntity.IMPORTANCE_NORMAL: return 5;
+            case TaskEntity.IMPORTANCE_IMPORTANT: return 5;
+            case TaskEntity.IMPORTANCE_VERY_IMPORTANT: return 2;
+            case TaskEntity.IMPORTANCE_SPECIAL: return 1; // Note: This is actually monthly
             default: return 5;
         }
     }
