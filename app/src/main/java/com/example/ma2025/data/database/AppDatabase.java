@@ -25,7 +25,7 @@ import com.example.ma2025.data.database.dao.UserProgressDao;
                 DailyStatsEntity.class,
                 UserProgressEntity.class
         },
-        version = 1,
+        version = 2,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -40,6 +40,17 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract DailyStatsDao dailyStatsDao();
     public abstract UserProgressDao userProgressDao();
 
+    // Migration for adding parent_task_id field
+    static final Migration MIGRATION_1_2 = new Migration(1, 2) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            // Dodaj novo polje parent_task_id za ponavljajuće zadatke
+            database.execSQL("ALTER TABLE tasks ADD COLUMN parent_task_id INTEGER");
+            // Dodaj index za novo polje
+            database.execSQL("CREATE INDEX index_tasks_parent_task_id ON tasks(parent_task_id)");
+        }
+    };
+
     // Singleton pattern
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCE == null) {
@@ -51,6 +62,7 @@ public abstract class AppDatabase extends RoomDatabase {
                                     DATABASE_NAME
                             )
                             .addCallback(roomCallback)
+                            .addMigrations(MIGRATION_1_2)
                             .fallbackToDestructiveMigration() // For development only
                             .build();
                 }
@@ -78,15 +90,6 @@ public abstract class AppDatabase extends RoomDatabase {
         // This will be called when user first creates categories
         // Default categories will be added per user when they register
     }
-
-    // Migration example (for future database updates)
-    static final Migration MIGRATION_1_2 = new Migration(1, 2) {
-        @Override
-        public void migrate(SupportSQLiteDatabase database) {
-            // Example migration - add new column
-            // database.execSQL("ALTER TABLE tasks ADD COLUMN new_column TEXT");
-        }
-    };
 
     // Helper method to close database (for testing)
     public static void closeDatabase() {

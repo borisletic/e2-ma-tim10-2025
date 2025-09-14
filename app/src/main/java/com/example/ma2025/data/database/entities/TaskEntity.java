@@ -15,7 +15,7 @@ import androidx.annotation.NonNull;
                 childColumns = "category_id",
                 onDelete = ForeignKey.SET_NULL
         ),
-        indices = {@Index("category_id"), @Index("user_id")}
+        indices = {@Index("category_id"), @Index("user_id"), @Index("parent_task_id")}
 )
 public class TaskEntity {
     @PrimaryKey(autoGenerate = true)
@@ -43,6 +43,9 @@ public class TaskEntity {
     @ColumnInfo(name = "is_repeating")
     public boolean isRepeating;
 
+    @ColumnInfo(name = "parent_task_id")
+    public Long parentTaskId;
+
     @ColumnInfo(name = "repeat_interval")
     public Integer repeatInterval;
 
@@ -56,7 +59,7 @@ public class TaskEntity {
     public Long endDate;
 
     @ColumnInfo(name = "due_time")
-    public Long dueTime;
+    public Long dueTime; // nullable, može biti null
 
     @ColumnInfo(name = "status")
     public int status; // 0=active, 1=completed, 2=failed, 3=canceled, 4=paused
@@ -110,7 +113,6 @@ public class TaskEntity {
             default: baseXp = 1;
         }
 
-        // Apply level multiplier
         for (int i = 0; i < level; i++) {
             baseXp = (int) (baseXp + baseXp / 2.0);
         }
@@ -127,7 +129,6 @@ public class TaskEntity {
             default: baseXp = 1;
         }
 
-        // Apply level multiplier
         for (int i = 0; i < level; i++) {
             baseXp = (int) (baseXp + baseXp / 2.0);
         }
@@ -173,15 +174,41 @@ public class TaskEntity {
     }
 
     public void pause() {
-        this.status = 4;
-        this.updatedAt = System.currentTimeMillis();
-        this.syncedToFirebase = false;
+        if (this.isRepeating) { // samo ponavljajući zadaci mogu biti pauzirani
+            this.status = 4;
+            this.updatedAt = System.currentTimeMillis();
+            this.syncedToFirebase = false;
+        }
     }
 
     public void activate() {
         this.status = 0;
         this.updatedAt = System.currentTimeMillis();
         this.syncedToFirebase = false;
+    }
+
+    public int getEffectiveStatus() {
+        long now = System.currentTimeMillis();
+
+        if (this.status == STATUS_ACTIVE && this.dueTime != null && this.dueTime < now) {
+            return STATUS_FAILED;
+        }
+
+        return this.status;
+    }
+
+    /**
+     * Pomoćna metoda koja vraća true ako je zadatak efektivno aktivan
+     */
+    public boolean isEffectivelyActive() {
+        return getEffectiveStatus() == STATUS_ACTIVE;
+    }
+
+    /**
+     * Pomoćna metoda koja vraća true ako je zadatak efektivno neurađen (prošao rok)
+     */
+    public boolean isEffectivelyFailed() {
+        return getEffectiveStatus() == STATUS_FAILED;
     }
 
     // Task status constants

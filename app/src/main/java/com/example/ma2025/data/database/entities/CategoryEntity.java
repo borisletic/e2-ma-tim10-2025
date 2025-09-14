@@ -21,6 +21,11 @@ public class CategoryEntity {
     @ColumnInfo(name = "name")
     public String name;
 
+    @Override
+    public String toString() {
+        return name; // ovo će se prikazivati u Spinneru
+    }
+
     @ColumnInfo(name = "color")
     public String color; // Hex color code like "#FF5722"
 

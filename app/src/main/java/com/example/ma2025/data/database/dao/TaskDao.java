@@ -118,8 +118,28 @@ public interface TaskDao {
             "AND tc.completion_date BETWEEN :startTime AND :endTime")
     int getCompletedTasksCountByImportanceAndDateRange(String userId, int importance, long startTime, long endTime);
 
+    @Query("SELECT COUNT(*) FROM tasks WHERE user_id = :userId AND status = 2")
+    int getTotalFailedTasks(String userId);
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE user_id = :userId AND status = 4")
+    int getTotalPausedTasks(String userId);
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE user_id = :userId AND status = 3")
+    int getTotalCanceledTasks(String userId);
+
     @Query("DELETE FROM tasks")
     void deleteAll();
+
+    @Query("DELETE FROM tasks WHERE id = :taskId OR (parent_task_id = :taskId AND status != :completedStatus)")
+    void deleteRecurringTaskAndFutureInstances(long taskId, int completedStatus);
+
+    @Query("UPDATE tasks SET title = :title, description = :description, " +
+            "difficulty = :difficulty, importance = :importance, " +
+            "updated_at = strftime('%s', 'now') * 1000 " +
+            "WHERE parent_task_id = :masterTaskId AND status IN (0, 4)")
+    void updateFutureInstancesOfRecurringTask(long masterTaskId, String title,
+                                              String description, int difficulty,
+                                              int importance);
 
     // Inner classes for query results
     public static class DifficultyCount {

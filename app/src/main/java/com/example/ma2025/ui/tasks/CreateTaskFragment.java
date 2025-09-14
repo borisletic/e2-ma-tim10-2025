@@ -3,692 +3,731 @@ package com.example.ma2025.ui.tasks;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
-import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.EditText;
-import android.widget.Spinner;
-import android.widget.Switch;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
-
+import androidx.lifecycle.ViewModelProvider;
 import com.example.ma2025.R;
 import com.example.ma2025.data.database.entities.TaskEntity;
 import com.example.ma2025.data.database.entities.CategoryEntity;
-import com.example.ma2025.data.repositories.TaskRepository;
-import com.example.ma2025.data.repositories.CategoryRepository;
-import com.example.ma2025.ui.categories.CategoriesFragment;
+import com.example.ma2025.viewmodels.CreateTaskViewModel;
+import com.example.ma2025.utils.DateUtils;
 import com.example.ma2025.utils.Constants;
-import com.google.android.material.button.MaterialButton;
-import com.google.firebase.auth.FirebaseAuth;
-
-import java.text.SimpleDateFormat;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import java.util.Calendar;
 import java.util.List;
-import java.util.Locale;
 
 public class CreateTaskFragment extends Fragment {
 
-    private static final String TAG = "CreateTaskFragment";
+    private static final String ARG_EDIT_TASK_ID = "edit_task_id";
 
-    // Views
-    private EditText etTaskName, etTaskDescription, etRepeatInterval;
-    private Spinner spinnerCategory, spinnerDifficulty, spinnerImportance, spinnerRepeatUnit;
-    private Switch switchRepeating;
-    private TextView tvXpValue;
-    private MaterialButton btnStartDate, btnEndDate, btnExecutionTime, btnSaveTask, btnManageCategories;
-    private View layoutRepeating;
+    // UI Components
+    private TextInputEditText etTaskName, etTaskDescription;
+    private TextInputLayout tilTaskName, tilTaskDescription;
+    private Spinner spCategory, spDifficulty, spImportance;
+    private RadioGroup rgTaskType;
+    private RadioButton rbSingleTask, rbRepeatingTask;
+    private LinearLayout llRepeatingOptions, llSingleTaskOptions;
+    private Spinner spRepeatInterval, spRepeatUnit;
+    private Button btnSelectDateTime, btnSelectStartDate, btnSelectEndDate;
+    private Button btnCreateTask, btnCancel;
+    private TextView tvSelectedDateTime, tvSelectedStartDate, tvSelectedEndDate;
+    private TextView tvXpPreview;
 
     // Data
-    private TaskRepository taskRepository;
-    private CategoryRepository categoryRepository;
-    private String currentUserId;
+    private CreateTaskViewModel viewModel;
     private List<CategoryEntity> categories;
-    private Calendar startDate, endDate, executionTime;
-    private SimpleDateFormat dateFormat, timeFormat;
+    private long selectedDateTime = 0;
+    private long selectedStartDate = 0;
+    private long selectedEndDate = 0;
 
+    // Edit mode variables
+    private boolean isEditMode = false;
+    private long editTaskId = -1;
+    private TaskEntity currentEditTask = null;
+
+    // Spinner adapters
+    private ArrayAdapter<CategoryEntity> categoryAdapter;
+    private ArrayAdapter<String> difficultyAdapter, importanceAdapter, intervalAdapter, unitAdapter;
+
+    // Arrays for spinners
+    private String[] difficultyArray = {
+            "Veoma lak (1 XP)", "Lak (3 XP)", "Težak (7 XP)", "Ekstremno težak (20 XP)"
+    };
+
+    private String[] importanceArray = {
+            "Normalan (1 XP)", "Važan (3 XP)", "Ekstremno važan (10 XP)", "Specijalan (100 XP)"
+    };
+
+    private String[] intervalArray = {"1", "2", "3", "4", "5", "6", "7"};
+    private String[] unitArray = {"Dan", "Nedelja"};
+
+    public static CreateTaskFragment newInstance() {
+        return new CreateTaskFragment();
+    }
+
+    public static CreateTaskFragment newInstanceForEdit(long taskId) {
+        CreateTaskFragment fragment = new CreateTaskFragment();
+        Bundle args = new Bundle();
+        args.putLong(ARG_EDIT_TASK_ID, taskId);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Check for edit mode
+        if (getArguments() != null && getArguments().containsKey(ARG_EDIT_TASK_ID)) {
+            isEditMode = true;
+            editTaskId = getArguments().getLong(ARG_EDIT_TASK_ID);
+        }
+    }
+
+    @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        Log.d(TAG, "onCreateView called");
-
         View view = inflater.inflate(R.layout.fragment_create_task, container, false);
 
-        try {
-            initializeComponents(view);
-            Log.d(TAG, "Fragment successfully initialized");
-            return view;
-        } catch (Exception e) {
-            Log.e(TAG, "Error creating view", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri inicijalizaciji: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-            return view;
-        }
-    }
-
-    private void initializeComponents(View view) {
-        // Verify context
-        if (getContext() == null) {
-            throw new IllegalStateException("Fragment context is null");
-        }
-
-        // Initialize repositories
-        taskRepository = TaskRepository.getInstance(getContext());
-        categoryRepository = CategoryRepository.getInstance(getContext());
-        Log.d(TAG, "Repositories initialized");
-
-        // Get current user
-        currentUserId = getCurrentUserId();
-        if (currentUserId == null) {
-            Log.e(TAG, "Current user ID is null");
-            Toast.makeText(getContext(), "Greška: Korisnik nije prijavljen", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        Log.d(TAG, "Current user ID: " + currentUserId);
-
-        // Initialize date/time
-        startDate = Calendar.getInstance();
-        endDate = Calendar.getInstance();
-        endDate.add(Calendar.DAY_OF_MONTH, 7); // Default end date 7 days from now
-        executionTime = Calendar.getInstance();
-        dateFormat = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
-        timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        Log.d(TAG, "Date/time components initialized");
-
-        // Initialize views and setup
         initViews(view);
+        setupViewModel();
         setupSpinners();
         setupListeners();
-        loadCategories();
-        updateXpValue();
+        observeData();
+
+        // Load task for editing if in edit mode
+        if (isEditMode) {
+            loadTaskForEditing();
+        }
+
+        return view;
     }
 
     private void initViews(View view) {
-        Log.d(TAG, "Initializing views...");
+        // Text inputs
+        etTaskName = view.findViewById(R.id.et_task_name);
+        etTaskDescription = view.findViewById(R.id.et_task_description);
+        tilTaskName = view.findViewById(R.id.til_task_name);
+        tilTaskDescription = view.findViewById(R.id.til_task_description);
+        llSingleTaskOptions = view.findViewById(R.id.ll_single_task_options);
 
-        try {
-            etTaskName = view.findViewById(R.id.etTaskName);
-            etTaskDescription = view.findViewById(R.id.etTaskDescription);
-            etRepeatInterval = view.findViewById(R.id.etRepeatInterval);
+        // Dodaj TextWatcher-e za veliko prvo slovo
+        addCapitalizeFirstLetterWatcher(etTaskName);
+        addCapitalizeFirstLetterWatcher(etTaskDescription);
 
-            spinnerCategory = view.findViewById(R.id.spinnerCategory);
-            spinnerDifficulty = view.findViewById(R.id.spinnerDifficulty);
-            spinnerImportance = view.findViewById(R.id.spinnerImportance);
-            spinnerRepeatUnit = view.findViewById(R.id.spinnerRepeatUnit);
+        // Spinners
+        spCategory = view.findViewById(R.id.sp_category);
+        spDifficulty = view.findViewById(R.id.sp_difficulty);
+        spImportance = view.findViewById(R.id.sp_importance);
+        spRepeatInterval = view.findViewById(R.id.sp_repeat_interval);
+        spRepeatUnit = view.findViewById(R.id.sp_repeat_unit);
 
-            switchRepeating = view.findViewById(R.id.switchRepeating);
-            layoutRepeating = view.findViewById(R.id.layoutRepeating);
+        // Radio buttons for task type
+        rgTaskType = view.findViewById(R.id.rg_task_type);
+        rbSingleTask = view.findViewById(R.id.rb_single_task);
+        rbRepeatingTask = view.findViewById(R.id.rb_repeating_task);
 
-            btnStartDate = view.findViewById(R.id.btnStartDate);
-            btnEndDate = view.findViewById(R.id.btnEndDate);
-            btnExecutionTime = view.findViewById(R.id.btnExecutionTime);
-            btnSaveTask = view.findViewById(R.id.btnSaveTask);
-            btnManageCategories = view.findViewById(R.id.btnManageCategories);
+        // Repeating options layout
+        llRepeatingOptions = view.findViewById(R.id.ll_repeating_options);
 
-            tvXpValue = view.findViewById(R.id.tvXpValue);
+        // Buttons
+        btnSelectDateTime = view.findViewById(R.id.btn_select_date_time);
+        btnSelectStartDate = view.findViewById(R.id.btn_select_start_date);
+        btnSelectEndDate = view.findViewById(R.id.btn_select_end_date);
+        btnCreateTask = view.findViewById(R.id.btn_create_task);
+        btnCancel = view.findViewById(R.id.btn_cancel);
 
-            // Verify critical views are found
-            if (etTaskName == null) {
-                throw new IllegalStateException("etTaskName not found in layout");
-            }
-            if (btnSaveTask == null) {
-                throw new IllegalStateException("btnSaveTask not found in layout");
-            }
-            if (spinnerDifficulty == null) {
-                throw new IllegalStateException("spinnerDifficulty not found in layout");
-            }
-            if (spinnerImportance == null) {
-                throw new IllegalStateException("spinnerImportance not found in layout");
-            }
-            if (btnManageCategories == null) {
-                throw new IllegalStateException("btnManageCategories not found in layout");
-            }
+        // TextViews
+        tvSelectedDateTime = view.findViewById(R.id.tv_selected_date_time);
+        tvSelectedStartDate = view.findViewById(R.id.tv_selected_start_date);
+        tvSelectedEndDate = view.findViewById(R.id.tv_selected_end_date);
+        tvXpPreview = view.findViewById(R.id.tv_xp_preview);
 
-            Log.d(TAG, "All views found successfully");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error finding views in layout", e);
-            throw e;
+        // Update UI based on mode
+        if (isEditMode) {
+            btnCreateTask.setText("Sačuvaj izmene");
+        } else {
+            btnCreateTask.setText("Kreiraj zadatak");
+            // Initially hide repeating options for new tasks
+            llRepeatingOptions.setVisibility(View.GONE);
         }
     }
 
-    private void setupSpinners() {
-        Log.d(TAG, "Setting up spinners...");
-
-        try {
-            // Difficulty spinner
-            String[] difficulties = {
-                    "Veoma lak (1 XP)",
-                    "Lak (3 XP)",
-                    "Težak (7 XP)",
-                    "Ekstremno težak (20 XP)"
-            };
-            ArrayAdapter<String> difficultyAdapter = new ArrayAdapter<>(getContext(),
-                    android.R.layout.simple_spinner_item, difficulties);
-            difficultyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerDifficulty.setAdapter(difficultyAdapter);
-            Log.d(TAG, "Difficulty spinner set up");
-
-            // Importance spinner
-            String[] importances = {
-                    "Normalan (1 XP)",
-                    "Važan (3 XP)",
-                    "Ekstremno važan (10 XP)",
-                    "Specijalan (100 XP)"
-            };
-            ArrayAdapter<String> importanceAdapter = new ArrayAdapter<>(getContext(),
-                    android.R.layout.simple_spinner_item, importances);
-            importanceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerImportance.setAdapter(importanceAdapter);
-            Log.d(TAG, "Importance spinner set up");
-
-            // Repeat unit spinner
-            String[] repeatUnits = {"Dana", "Nedelja"};
-            ArrayAdapter<String> repeatAdapter = new ArrayAdapter<>(getContext(),
-                    android.R.layout.simple_spinner_item, repeatUnits);
-            repeatAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerRepeatUnit.setAdapter(repeatAdapter);
-            Log.d(TAG, "Repeat unit spinner set up");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error setting up spinners", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri postavljanju spinera", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void setupListeners() {
-        Log.d(TAG, "Setting up listeners...");
-
-        try {
-            // Switch listener
-            switchRepeating.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                Log.d(TAG, "Switch toggled: " + isChecked);
-                layoutRepeating.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-                updateDateButtonTexts();
-            });
-
-            // Date/time button listeners
-            btnStartDate.setOnClickListener(v -> {
-                Log.d(TAG, "Start date button clicked");
-                showDatePicker(true);
-            });
-
-            btnEndDate.setOnClickListener(v -> {
-                Log.d(TAG, "End date button clicked");
-                showDatePicker(false);
-            });
-
-            btnExecutionTime.setOnClickListener(v -> {
-                Log.d(TAG, "Execution time button clicked");
-                showTimePicker();
-            });
-
-            // Categories management button
-            btnManageCategories.setOnClickListener(v -> {
-                Log.d(TAG, "Manage categories button clicked");
-                openCategoriesFragment();
-            });
-
-            // Spinner listeners for XP calculation
-            spinnerDifficulty.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                    Log.d(TAG, "Difficulty selected: position " + position);
-                    updateXpValue();
-                }
-                @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-            });
-
-            spinnerImportance.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                    Log.d(TAG, "Importance selected: position " + position);
-                    updateXpValue();
-                }
-                @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-            });
-
-            // Save button
-            btnSaveTask.setOnClickListener(v -> {
-                Log.d(TAG, "Save button clicked");
-                saveTask();
-            });
-
-            updateDateButtonTexts();
-            Log.d(TAG, "All listeners set up successfully");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error setting up listeners", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri postavljanju dugmića", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void openCategoriesFragment() {
-        try {
-            Log.d(TAG, "Opening categories fragment - START");
-
-            if (getActivity() != null) {
-                Log.d(TAG, "Activity is not null");
-
-                getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, new CategoriesFragment())
-                        .addToBackStack(null)
-                        .commit();
-
-                Log.d(TAG, "Categories fragment transaction committed");
-            } else {
-                Log.e(TAG, "Activity is null");
-                Toast.makeText(getContext(), "Greška pri otvaranju kategorija", Toast.LENGTH_SHORT).show();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error opening categories fragment", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void loadCategories() {
-        Log.d(TAG, "Loading categories for user: " + currentUserId);
-
-        try {
-            categoryRepository.getAllCategories(currentUserId).observe(getViewLifecycleOwner(), new Observer<List<CategoryEntity>>() {
-                @Override
-                public void onChanged(List<CategoryEntity> categoryEntities) {
-                    Log.d(TAG, "Categories observer triggered, count: " + (categoryEntities != null ? categoryEntities.size() : 0));
-
-                    if (categoryEntities != null && !categoryEntities.isEmpty()) {
-                        categories = categoryEntities;
-                        setupCategorySpinner();
-                        Log.d(TAG, "Categories loaded successfully: " + categoryEntities.size());
-                    } else {
-                        Log.d(TAG, "No categories found, creating default ones");
-                        createDefaultCategories();
-                    }
-                }
-            });
-        } catch (Exception e) {
-            Log.e(TAG, "Error setting up category observer", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri učitavanju kategorija", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void createDefaultCategories() {
-        Log.d(TAG, "Creating default categories...");
-
-        categoryRepository.createDefaultCategories(currentUserId, new CategoryRepository.OnCategoryOperationCallback() {
-            @Override
-            public void onSuccess(String message) {
-                Log.d(TAG, "Default categories created successfully: " + message);
-                // Categories will be loaded automatically via observer
-            }
+    // Helper metoda za dodavanje TextWatcher-a
+    private void addCapitalizeFirstLetterWatcher(EditText editText) {
+        editText.addTextChangedListener(new TextWatcher() {
+            private boolean isEditing = false;
 
             @Override
-            public void onError(String error) {
-                Log.e(TAG, "Error creating default categories: " + error);
-                if (getContext() != null) {
-                    Toast.makeText(getContext(), "Greška pri kreiranju kategorija: " + error, Toast.LENGTH_SHORT).show();
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) { }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (isEditing) return;
+                if (s.length() > 0) {
+                    isEditing = true;
+                    char firstChar = Character.toUpperCase(s.charAt(0));
+                    String rest = s.length() > 1 ? s.subSequence(1, s.length()).toString() : "";
+                    s.replace(0, s.length(), firstChar + rest);
+                    isEditing = false;
                 }
             }
         });
     }
 
-    private void setupCategorySpinner() {
-        Log.d(TAG, "Setting up category spinner...");
-
-        try {
-            if (categories == null || categories.isEmpty()) {
-                Log.w(TAG, "Categories list is empty");
-                return;
-            }
-
-            String[] categoryNames = new String[categories.size()];
-            for (int i = 0; i < categories.size(); i++) {
-                categoryNames[i] = categories.get(i).name;
-                Log.d(TAG, "Category " + i + ": " + categoryNames[i]);
-            }
-
-            ArrayAdapter<String> categoryAdapter = new ArrayAdapter<>(getContext(),
-                    android.R.layout.simple_spinner_item, categoryNames);
-            categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerCategory.setAdapter(categoryAdapter);
-
-            Log.d(TAG, "Category spinner set up with " + categoryNames.length + " categories");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error setting up category spinner", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri postavljanju kategorija", Toast.LENGTH_SHORT).show();
-            }
-        }
+    private void setupViewModel() {
+        viewModel = new ViewModelProvider(this).get(CreateTaskViewModel.class);
     }
 
-    private void showDatePicker(boolean isStartDate) {
-        Log.d(TAG, "Showing date picker for " + (isStartDate ? "start" : "end") + " date");
+    private void setupSpinners() {
+        // Difficulty spinner
+        difficultyAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, difficultyArray);
+        difficultyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spDifficulty.setAdapter(difficultyAdapter);
 
-        try {
-            if (getContext() == null) {
-                Log.e(TAG, "Context is null, cannot show date picker");
-                return;
-            }
+        // Importance spinner
+        importanceAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, importanceArray);
+        importanceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spImportance.setAdapter(importanceAdapter);
 
-            Calendar cal = isStartDate ? startDate : endDate;
+        // Repeat interval spinner
+        intervalAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, intervalArray);
+        intervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spRepeatInterval.setAdapter(intervalAdapter);
 
-            DatePickerDialog datePickerDialog = new DatePickerDialog(getContext(),
-                    (view, year, month, dayOfMonth) -> {
-                        cal.set(year, month, dayOfMonth);
-                        updateDateButtonTexts();
-                        Log.d(TAG, "Date selected: " + dateFormat.format(cal.getTime()));
-                    },
-                    cal.get(Calendar.YEAR),
-                    cal.get(Calendar.MONTH),
-                    cal.get(Calendar.DAY_OF_MONTH));
-
-            datePickerDialog.show();
-            Log.d(TAG, "Date picker shown successfully");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error showing date picker", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri prikazivanju kalendara", Toast.LENGTH_SHORT).show();
-            }
-        }
+        // Repeat unit spinner
+        unitAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, unitArray);
+        unitAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spRepeatUnit.setAdapter(unitAdapter);
     }
 
-    private void showTimePicker() {
-        Log.d(TAG, "Showing time picker");
+    private void setupListeners() {
+        // Task type radio button change listener
+        rgTaskType.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.rb_repeating_task) {
+                Log.d("CreateTaskFragment", "Switching to repeating task");
+                llRepeatingOptions.setVisibility(View.VISIBLE);
 
-        try {
-            if (getContext() == null) {
-                Log.e(TAG, "Context is null, cannot show time picker");
-                return;
-            }
-
-            TimePickerDialog timePickerDialog = new TimePickerDialog(getContext(),
-                    (view, hourOfDay, minute) -> {
-                        executionTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
-                        executionTime.set(Calendar.MINUTE, minute);
-                        updateDateButtonTexts();
-                        Log.d(TAG, "Time selected: " + timeFormat.format(executionTime.getTime()));
-                    },
-                    executionTime.get(Calendar.HOUR_OF_DAY),
-                    executionTime.get(Calendar.MINUTE),
-                    true);
-
-            timePickerDialog.show();
-            Log.d(TAG, "Time picker shown successfully");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error showing time picker", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri prikazivanju sata", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void updateDateButtonTexts() {
-        try {
-            if (switchRepeating.isChecked()) {
-                btnStartDate.setText("Početak: " + dateFormat.format(startDate.getTime()));
-                btnEndDate.setText("Kraj: " + dateFormat.format(endDate.getTime()));
+                btnSelectDateTime.setVisibility(View.GONE);
+                tvSelectedDateTime.setVisibility(View.GONE);
+                btnSelectStartDate.setVisibility(View.VISIBLE);
+                btnSelectEndDate.setVisibility(View.VISIBLE);
+                tvSelectedStartDate.setVisibility(View.VISIBLE);
+                tvSelectedEndDate.setVisibility(View.VISIBLE);
             } else {
-                btnStartDate.setText("Datum: " + dateFormat.format(startDate.getTime()));
-                btnEndDate.setText("Kraj: opciono");
+                llRepeatingOptions.setVisibility(View.GONE);
+                btnSelectDateTime.setVisibility(View.VISIBLE);
+                tvSelectedDateTime.setVisibility(View.VISIBLE);
+                btnSelectStartDate.setVisibility(View.GONE);
+                btnSelectEndDate.setVisibility(View.GONE);
+                tvSelectedStartDate.setVisibility(View.GONE);
+                tvSelectedEndDate.setVisibility(View.GONE);
             }
-            btnExecutionTime.setText("Vreme: " + timeFormat.format(executionTime.getTime()));
+        });
 
-        } catch (Exception e) {
-            Log.e(TAG, "Error updating date button texts", e);
+        // Date/Time selection buttons
+        btnSelectDateTime.setOnClickListener(v -> showDateTimePicker());
+        btnSelectStartDate.setOnClickListener(v -> showStartDatePicker());
+        btnSelectEndDate.setOnClickListener(v -> showEndDatePicker());
+
+        // XP preview update listeners
+        spDifficulty.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                updateXpPreview();
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        spImportance.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                updateXpPreview();
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // Create/Update task button
+        btnCreateTask.setOnClickListener(v -> saveTask());
+
+        // Cancel button
+        btnCancel.setOnClickListener(v -> navigateBack());
+    }
+
+    private void observeData() {
+        // Observe categories
+        viewModel.getAllCategories().observe(getViewLifecycleOwner(), categoryList -> {
+            if (categoryList != null) {
+                this.categories = categoryList;
+                setupCategorySpinner();
+                // Set category selection for edit mode
+                if (isEditMode) {
+                    populateCategorySelection();
+                }
+            }
+        });
+
+        // Observe task creation/update result
+        viewModel.getTaskCreationResult().observe(getViewLifecycleOwner(), result -> {
+            if (result != null) {
+                if (result.isSuccess()) {
+                    String message = isEditMode ? "Zadatak je uspešno ažuriran!" : "Zadatak je uspešno kreiran!";
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
+                    navigateBack();
+                } else {
+                    Toast.makeText(requireContext(), "Greška: " + result.getErrorMessage(), Toast.LENGTH_LONG).show();
+                }
+                viewModel.clearResult();
+            }
+        });
+    }
+
+    private void loadTaskForEditing() {
+        viewModel.getTaskById(editTaskId).observe(getViewLifecycleOwner(), task -> {
+            if (task != null) {
+                currentEditTask = task;
+                populateFormWithTask(task);
+            }
+        });
+    }
+
+    private void populateFormWithTask(TaskEntity task) {
+        // Basic info
+        etTaskName.setText(task.title);
+        etTaskDescription.setText(task.description != null ? task.description : "");
+
+        // Difficulty and importance (position = value - 1)
+        spDifficulty.setSelection(task.difficulty - 1);
+        spImportance.setSelection(task.importance - 1);
+
+        // Task type
+        if (task.isRepeating) {
+            rbRepeatingTask.setChecked(true);
+            llRepeatingOptions.setVisibility(View.VISIBLE);
+
+            // Repeating options
+            if (task.repeatInterval != null) {
+                // Find position in intervalArray
+                String intervalStr = String.valueOf(task.repeatInterval);
+                for (int i = 0; i < intervalArray.length; i++) {
+                    if (intervalArray[i].equals(intervalStr)) {
+                        spRepeatInterval.setSelection(i);
+                        break;
+                    }
+                }
+            }
+
+            if (task.repeatUnit != null) {
+                // Find position in unitArray
+                String unit = task.repeatUnit.toLowerCase();
+                for (int i = 0; i < unitArray.length; i++) {
+                    if (unitArray[i].toLowerCase().equals(unit) ||
+                            (unit.equals("dan") && unitArray[i].equals("Dan")) ||
+                            (unit.equals("day") && unitArray[i].equals("Dan")) ||
+                            (unit.equals("nedelja") && unitArray[i].equals("Nedelja")) ||
+                            (unit.equals("week") && unitArray[i].equals("Nedelja"))) {
+                        spRepeatUnit.setSelection(i);
+                        break;
+                    }
+                }
+            }
+
+            // Dates
+            if (task.startDate != null) {
+                selectedStartDate = task.startDate;
+                tvSelectedStartDate.setText(DateUtils.formatDate(selectedStartDate));
+                tvSelectedStartDate.setVisibility(View.VISIBLE);
+                btnSelectStartDate.setVisibility(View.VISIBLE);
+            }
+
+            if (task.endDate != null) {
+                selectedEndDate = task.endDate;
+                tvSelectedEndDate.setText(DateUtils.formatDate(selectedEndDate));
+                tvSelectedEndDate.setVisibility(View.VISIBLE);
+                btnSelectEndDate.setVisibility(View.VISIBLE);
+            }
+
+            // Hide single task options
+            btnSelectDateTime.setVisibility(View.GONE);
+            tvSelectedDateTime.setVisibility(View.GONE);
+        } else {
+            rbSingleTask.setChecked(true);
+            llRepeatingOptions.setVisibility(View.GONE);
+
+            // Single task due time
+            if (task.dueTime != null) {
+                selectedDateTime = task.dueTime;
+                tvSelectedDateTime.setText(DateUtils.formatDateTime(selectedDateTime));
+                tvSelectedDateTime.setVisibility(View.VISIBLE);
+                btnSelectDateTime.setVisibility(View.VISIBLE);
+            }
+
+            // Hide repeating task options
+            btnSelectStartDate.setVisibility(View.GONE);
+            btnSelectEndDate.setVisibility(View.GONE);
+            tvSelectedStartDate.setVisibility(View.GONE);
+            tvSelectedEndDate.setVisibility(View.GONE);
+        }
+
+        // Update XP preview
+        updateXpPreview();
+    }
+
+    private void populateCategorySelection() {
+        if (currentEditTask != null && currentEditTask.categoryId != null && categories != null) {
+            for (int i = 0; i < categories.size(); i++) {
+                if (categories.get(i).id == currentEditTask.categoryId.longValue()) {
+                    spCategory.setSelection(i);
+                    break;
+                }
+            }
         }
     }
 
-    private void updateXpValue() {
+    // DODATO: Metoda za navigaciju nazad
+    private void navigateBack() {
         try {
-            int difficultyXp = getDifficultyXp(spinnerDifficulty.getSelectedItemPosition());
-            int importanceXp = getImportanceXp(spinnerImportance.getSelectedItemPosition());
-            int totalXp = difficultyXp + importanceXp;
-
-            tvXpValue.setText("Ukupno XP: " + totalXp);
-            Log.d(TAG, "XP value updated: " + totalXp);
-
+            // Pokušaj da odeš nazad u stack
+            if (getParentFragmentManager().getBackStackEntryCount() > 0) {
+                getParentFragmentManager().popBackStack();
+            } else {
+                // Ako nema back stack-a, vrati se na TaskListFragment
+                TaskListFragment taskListFragment = new TaskListFragment();
+                getParentFragmentManager().beginTransaction()
+                        .replace(getCurrentContainerId(), taskListFragment)
+                        .commit();
+            }
         } catch (Exception e) {
-            Log.e(TAG, "Error updating XP value", e);
+            Log.e("CreateTaskFragment", "Error navigating back", e);
+            // Fallback - finish Activity ako je potrebno
+            if (getActivity() != null) {
+                getActivity().onBackPressed();
+            }
         }
     }
 
-    private int getDifficultyXp(int position) {
-        switch (position) {
-            case 0: return 1;   // Very easy
-            case 1: return 3;   // Easy
-            case 2: return 7;   // Hard
-            case 3: return 20;  // Extreme
-            default: return 1;
+    // DODATO: Metoda za pronalaženje container ID-ja
+    private int getCurrentContainerId() {
+        // Pokušaj sa uobičajenim ID-jevima
+        if (getView() != null && getView().getParent() instanceof ViewGroup) {
+            ViewGroup parent = (ViewGroup) getView().getParent();
+            return parent.getId();
+        }
+
+        // Fallback ID-jevi
+        int[] commonIds = {
+                android.R.id.content,
+                R.id.fragment_container
+        };
+
+        for (int id : commonIds) {
+            try {
+                if (getActivity() != null && getActivity().findViewById(id) != null) {
+                    return id;
+                }
+            } catch (Exception e) {
+                // Nastavi sa sledećim ID-jem
+            }
+        }
+
+        return android.R.id.content; // Poslednji fallback
+    }
+
+    private void setupCategorySpinner() {
+        if (categories != null && !categories.isEmpty()) {
+            categoryAdapter = new CategorySpinnerAdapter(requireContext(), categories);
+            spCategory.setAdapter(categoryAdapter);
         }
     }
 
-    private int getImportanceXp(int position) {
-        switch (position) {
-            case 0: return 1;   // Normal
-            case 1: return 3;   // Important
-            case 2: return 10;  // Very important
-            case 3: return 100; // Special
-            default: return 1;
+    private void showDateTimePicker() {
+        Calendar calendar = Calendar.getInstance();
+
+        DatePickerDialog dateDialog = new DatePickerDialog(requireContext(),
+                (view, year, month, dayOfMonth) -> {
+                    calendar.set(Calendar.YEAR, year);
+                    calendar.set(Calendar.MONTH, month);
+                    calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+
+                    // After date is selected, show time picker
+                    TimePickerDialog timeDialog = new TimePickerDialog(requireContext(),
+                            (timeView, hourOfDay, minute) -> {
+                                calendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                                calendar.set(Calendar.MINUTE, minute);
+                                calendar.set(Calendar.SECOND, 0);
+
+                                selectedDateTime = calendar.getTimeInMillis();
+                                tvSelectedDateTime.setText(DateUtils.formatDateTime(selectedDateTime));
+
+                            }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true);
+                    timeDialog.show();
+
+                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+
+        // Only set min date for new tasks, not for editing
+        if (!isEditMode) {
+            dateDialog.getDatePicker().setMinDate(System.currentTimeMillis());
+        }
+        dateDialog.show();
+    }
+
+    private void showStartDatePicker() {
+        Calendar calendar = Calendar.getInstance();
+
+        DatePickerDialog dialog = new DatePickerDialog(requireContext(),
+                (view, year, month, dayOfMonth) -> {
+                    calendar.set(year, month, dayOfMonth, 0, 0, 0);
+                    selectedStartDate = calendar.getTimeInMillis();
+                    tvSelectedStartDate.setText(DateUtils.formatDate(selectedStartDate));
+                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+
+        // Only set min date for new tasks, not for editing
+        if (!isEditMode) {
+            dialog.getDatePicker().setMinDate(System.currentTimeMillis());
+        }
+        dialog.show();
+    }
+
+    private void showEndDatePicker() {
+        Calendar calendar = Calendar.getInstance();
+
+        DatePickerDialog dialog = new DatePickerDialog(requireContext(),
+                (view, year, month, dayOfMonth) -> {
+                    calendar.set(year, month, dayOfMonth, 23, 59, 59);
+                    selectedEndDate = calendar.getTimeInMillis();
+                    tvSelectedEndDate.setText(DateUtils.formatDate(selectedEndDate));
+                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+
+        if (selectedStartDate > 0) {
+            dialog.getDatePicker().setMinDate(selectedStartDate);
+        } else if (!isEditMode) {
+            dialog.getDatePicker().setMinDate(System.currentTimeMillis());
+        }
+        dialog.show();
+    }
+
+    private void updateXpPreview() {
+        int difficulty = spDifficulty.getSelectedItemPosition() + 1;
+        int importance = spImportance.getSelectedItemPosition() + 1;
+
+        int difficultyXp = getDifficultyXp(difficulty);
+        int importanceXp = getImportanceXp(importance);
+        int totalXp = difficultyXp + importanceXp;
+
+        tvXpPreview.setText(String.format("Ukupno XP: %d", totalXp));
+    }
+
+    private int getDifficultyXp(int difficulty) {
+        switch (difficulty) {
+            case 1: return Constants.XP_VERY_EASY;  // 1
+            case 2: return Constants.XP_EASY;       // 3
+            case 3: return Constants.XP_HARD;       // 7
+            case 4: return Constants.XP_EXTREME;    // 20
+            default: return Constants.XP_VERY_EASY;
+        }
+    }
+
+    private int getImportanceXp(int importance) {
+        switch (importance) {
+            case 1: return Constants.XP_NORMAL;            // 1
+            case 2: return Constants.XP_IMPORTANT;         // 3
+            case 3: return Constants.XP_VERY_IMPORTANT;    // 10
+            case 4: return Constants.XP_SPECIAL;           // 100
+            default: return Constants.XP_NORMAL;
         }
     }
 
     private void saveTask() {
-        Log.d(TAG, "Starting task save process");
+        if (!validateInputs()) {
+            return;
+        }
 
-        try {
-            if (!validateInput()) {
-                Log.w(TAG, "Input validation failed");
-                return;
-            }
-
-            // Create TaskEntity
-            TaskEntity task = new TaskEntity();
-            task.userId = currentUserId;
-            task.title = etTaskName.getText().toString().trim();
-            task.description = etTaskDescription.getText().toString().trim();
-
-            // Category
-            if (categories != null && spinnerCategory.getSelectedItemPosition() >= 0
-                    && spinnerCategory.getSelectedItemPosition() < categories.size()) {
-                task.categoryId = categories.get(spinnerCategory.getSelectedItemPosition()).id;
-                Log.d(TAG, "Category ID set: " + task.categoryId);
-            }
-
-            // Difficulty and importance (1-based to match constants)
-            task.difficulty = spinnerDifficulty.getSelectedItemPosition() + 1;
-            task.importance = spinnerImportance.getSelectedItemPosition() + 1;
-            Log.d(TAG, "Difficulty: " + task.difficulty + ", Importance: " + task.importance);
-
-            // Repeating setup
-            task.isRepeating = switchRepeating.isChecked();
-
-            if (task.isRepeating) {
-                task.repeatInterval = Integer.parseInt(etRepeatInterval.getText().toString().trim());
-                task.repeatUnit = spinnerRepeatUnit.getSelectedItemPosition() == 0 ? "day" : "week";
-                task.startDate = startDate.getTimeInMillis();
-                task.endDate = endDate.getTimeInMillis();
-                Log.d(TAG, "Repeating task configured");
-            } else {
-                // For single task, combine date and time
-                Calendar combined = Calendar.getInstance();
-                combined.setTime(startDate.getTime());
-                combined.set(Calendar.HOUR_OF_DAY, executionTime.get(Calendar.HOUR_OF_DAY));
-                combined.set(Calendar.MINUTE, executionTime.get(Calendar.MINUTE));
-                task.startDate = combined.getTimeInMillis();
-                Log.d(TAG, "Single task configured");
-            }
-
-            task.dueTime = task.startDate; // Initially same as start date
-
-            Log.d(TAG, "Task prepared for saving: " + task.title);
-
-            // Save task
-            taskRepository.insertTask(task, new TaskRepository.OnTaskInsertedCallback() {
-                @Override
-                public void onSuccess(long taskId) {
-                    Log.d(TAG, "Task saved successfully with ID: " + taskId);
-                    if (getActivity() != null) {
-                        getActivity().runOnUiThread(() -> {
-                            Toast.makeText(getContext(), "Zadatak je uspešno kreiran!", Toast.LENGTH_SHORT).show();
-                            clearForm();
-                        });
-                    }
-                }
-
-                @Override
-                public void onError(String error) {
-                    Log.e(TAG, "Error saving task: " + error);
-                    if (getActivity() != null) {
-                        getActivity().runOnUiThread(() -> {
-                            Toast.makeText(getContext(), "Greška: " + error, Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                }
-            });
-
-        } catch (Exception e) {
-            Log.e(TAG, "Exception during task save", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri čuvanju: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
+        if (isEditMode) {
+            updateExistingTask();
+        } else {
+            createNewTask();
         }
     }
 
-    private boolean validateInput() {
-        Log.d(TAG, "Validating input...");
+    private void updateExistingTask() {
+        TaskEntity task = createTaskFromForm();
+        task.id = editTaskId;
+        // Zadržaj originalne timestamps
+        if (currentEditTask != null) {
+            task.createdAt = currentEditTask.createdAt;
+        }
 
-        try {
-            String taskName = etTaskName.getText().toString().trim();
-            if (taskName.isEmpty()) {
-                Toast.makeText(getContext(), "Unesite naziv zadatka", Toast.LENGTH_SHORT).show();
-                Log.w(TAG, "Task name is empty");
-                return false;
+        viewModel.updateTask(task);
+    }
+
+    private void createNewTask() {
+        TaskEntity task = createTaskFromForm();
+        viewModel.createTask(task);
+    }
+
+    private TaskEntity createTaskFromForm() {
+        String userId = viewModel.getCurrentUserId();
+
+        TaskEntity task = new TaskEntity();
+        task.userId = userId;
+        task.title = etTaskName.getText().toString().trim();
+        task.description = etTaskDescription.getText().toString().trim();
+
+        // Category
+        if (spCategory.getSelectedItem() != null) {
+            Object selectedItem = spCategory.getSelectedItem();
+            if (selectedItem instanceof CategoryEntity) {
+                CategoryEntity selectedCategory = (CategoryEntity) selectedItem;
+                task.categoryId = selectedCategory.id;
+            }
+        }
+
+        // Difficulty and importance (pozicija + 1)
+        task.difficulty = spDifficulty.getSelectedItemPosition() + 1;
+        task.importance = spImportance.getSelectedItemPosition() + 1;
+
+        // Task type and scheduling
+        if (rbRepeatingTask.isChecked()) {
+            task.isRepeating = true;
+            task.repeatInterval = Integer.parseInt(intervalArray[spRepeatInterval.getSelectedItemPosition()]);
+            task.repeatUnit = unitArray[spRepeatUnit.getSelectedItemPosition()].toLowerCase();
+            task.startDate = selectedStartDate;
+            task.endDate = selectedEndDate;
+        } else {
+            task.isRepeating = false;
+            task.dueTime = selectedDateTime;
+        }
+
+        return task;
+    }
+
+    private boolean validateInputs() {
+        boolean isValid = true;
+
+        // Validate task name
+        String taskName = etTaskName.getText().toString().trim();
+        if (TextUtils.isEmpty(taskName)) {
+            tilTaskName.setError("Unesite naziv zadatka");
+            isValid = false;
+        } else if (taskName.length() < Constants.MIN_TASK_TITLE_LENGTH) {
+            tilTaskName.setError("Naziv mora imati najmanje " + Constants.MIN_TASK_TITLE_LENGTH + " karaktera");
+            isValid = false;
+        } else if (taskName.length() > Constants.MAX_TASK_TITLE_LENGTH) {
+            tilTaskName.setError("Naziv može imati najviše " + Constants.MAX_TASK_TITLE_LENGTH + " karaktera");
+            isValid = false;
+        } else {
+            tilTaskName.setError(null);
+        }
+
+        // Validate description length
+        String description = etTaskDescription.getText().toString().trim();
+        if (description.length() > Constants.MAX_TASK_DESCRIPTION_LENGTH) {
+            tilTaskDescription.setError("Opis može imati najviše " + Constants.MAX_TASK_DESCRIPTION_LENGTH + " karaktera");
+            isValid = false;
+        } else {
+            tilTaskDescription.setError(null);
+        }
+
+        // Validate category selection
+        if (spCategory.getSelectedItem() == null) {
+            Toast.makeText(requireContext(), "Izaberite kategoriju", Toast.LENGTH_SHORT).show();
+            isValid = false;
+        }
+
+        // Validate date/time selection based on task type
+        if (rbRepeatingTask.isChecked()) {
+            if (selectedStartDate == 0) {
+                Toast.makeText(requireContext(), "Izaberite datum početka", Toast.LENGTH_SHORT).show();
+                isValid = false;
+            }
+            if (selectedEndDate == 0) {
+                Toast.makeText(requireContext(), "Izaberite datum završetka", Toast.LENGTH_SHORT).show();
+                isValid = false;
+            }
+            if (selectedStartDate > 0 && selectedEndDate > 0 && selectedStartDate >= selectedEndDate) {
+                Toast.makeText(requireContext(), "Datum završetka mora biti posle datuma početka", Toast.LENGTH_SHORT).show();
+                isValid = false;
+            }
+        } else {
+            if (selectedDateTime == 0) {
+                Toast.makeText(requireContext(), "Izaberite datum i vreme izvršenja", Toast.LENGTH_SHORT).show();
+                isValid = false;
+            }
+        }
+
+        return isValid;
+    }
+
+    private static class CategorySpinnerAdapter extends ArrayAdapter<CategoryEntity> {
+
+        public CategorySpinnerAdapter(@NonNull Context context, List<CategoryEntity> categories) {
+            super(context, 0, categories); // 0 jer koristimo custom layout
+        }
+
+        private View createView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            if (convertView == null) {
+                convertView = LayoutInflater.from(getContext())
+                        .inflate(R.layout.spinner_category_item, parent, false);
             }
 
-            if (categories == null || categories.isEmpty()) {
-                Toast.makeText(getContext(), "Kategorije se još učitavaju...", Toast.LENGTH_SHORT).show();
-                Log.w(TAG, "Categories not loaded yet");
-                return false;
-            }
+            TextView tvName = convertView.findViewById(R.id.tv_category_name);
+            View vCircle = convertView.findViewById(R.id.v_color_circle);
 
-            if (switchRepeating.isChecked()) {
-                String intervalStr = etRepeatInterval.getText().toString().trim();
-                if (intervalStr.isEmpty()) {
-                    Toast.makeText(getContext(), "Unesite interval ponavljanja", Toast.LENGTH_SHORT).show();
-                    Log.w(TAG, "Repeat interval is empty");
-                    return false;
-                }
-
+            CategoryEntity category = getItem(position);
+            if (category != null) {
+                tvName.setText(category.name);
                 try {
-                    int interval = Integer.parseInt(intervalStr);
-                    if (interval <= 0) {
-                        Toast.makeText(getContext(), "Interval mora biti veći od 0", Toast.LENGTH_SHORT).show();
-                        Log.w(TAG, "Repeat interval is <= 0");
-                        return false;
-                    }
-                } catch (NumberFormatException e) {
-                    Toast.makeText(getContext(), "Interval mora biti broj", Toast.LENGTH_SHORT).show();
-                    Log.w(TAG, "Repeat interval is not a number");
-                    return false;
-                }
-
-                if (endDate.before(startDate)) {
-                    Toast.makeText(getContext(), "Datum završetka mora biti posle početka", Toast.LENGTH_SHORT).show();
-                    Log.w(TAG, "End date is before start date");
-                    return false;
+                    int color = Color.parseColor(category.color);
+                    tvName.setTextColor(color);
+                    vCircle.setBackground(createCircleDrawable(color));
+                } catch (Exception e) {
+                    tvName.setTextColor(Color.BLACK);
+                    vCircle.setBackground(createCircleDrawable(Color.BLACK));
                 }
             }
 
-            Log.d(TAG, "Input validation passed");
-            return true;
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error during validation", e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Greška pri validaciji", Toast.LENGTH_SHORT).show();
-            }
-            return false;
+            return convertView;
         }
-    }
 
-    private void clearForm() {
-        Log.d(TAG, "Clearing form...");
-
-        try {
-            etTaskName.setText("");
-            etTaskDescription.setText("");
-            etRepeatInterval.setText("1");
-            switchRepeating.setChecked(false);
-            layoutRepeating.setVisibility(View.GONE);
-
-            // Reset dates to current
-            startDate = Calendar.getInstance();
-            endDate = Calendar.getInstance();
-            endDate.add(Calendar.DAY_OF_MONTH, 7);
-            executionTime = Calendar.getInstance();
-            updateDateButtonTexts();
-
-            // Reset spinners to first position
-            if (spinnerCategory.getAdapter() != null) {
-                spinnerCategory.setSelection(0);
-            }
-            spinnerDifficulty.setSelection(0);
-            spinnerImportance.setSelection(0);
-            spinnerRepeatUnit.setSelection(0);
-
-            updateXpValue();
-
-            Log.d(TAG, "Form cleared successfully");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error clearing form", e);
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            return createView(position, convertView, parent);
         }
-    }
 
-    private String getCurrentUserId() {
-        try {
-            // Try Firebase first
-            if (FirebaseAuth.getInstance().getCurrentUser() != null) {
-                String firebaseUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                Log.d(TAG, "Got user ID from Firebase: " + firebaseUserId);
-                return firebaseUserId;
-            }
+        @Override
+        public View getDropDownView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            return createView(position, convertView, parent);
+        }
 
-            // Fallback to SharedPreferences
-            if (getContext() != null) {
-                SharedPreferences prefs = getContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE);
-                String prefUserId = prefs.getString(Constants.PREF_USER_ID, null);
-                Log.d(TAG, "Got user ID from SharedPreferences: " + prefUserId);
-                return prefUserId;
-            }
-
-            Log.w(TAG, "Could not get user ID - no Firebase user and no context");
-            return null;
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error getting current user ID", e);
-            return null;
+        private GradientDrawable createCircleDrawable(int color) {
+            GradientDrawable drawable = new GradientDrawable();
+            drawable.setShape(GradientDrawable.OVAL);
+            drawable.setColor(color);
+            return drawable;
         }
     }
 }
