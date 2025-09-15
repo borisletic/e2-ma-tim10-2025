@@ -1,5 +1,6 @@
 package com.example.ma2025.ui.tasks;
 
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -11,6 +12,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -32,8 +34,8 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
 
     private CalendarView calendarView;
     private RecyclerView rvDayTasks;
-    private LinearLayout llEmptyState;
-    private TextView tvSelectedDate;
+    private LinearLayout llEmptyState, llTaskSummary;
+    private TextView tvSelectedDate, tvTaskCount, tvCompletedCount;
     private FloatingActionButton fabAddTask;
 
     private TaskListViewModel taskViewModel;
@@ -65,7 +67,10 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
         calendarView = view.findViewById(R.id.calendar_view);
         rvDayTasks = view.findViewById(R.id.rv_day_tasks);
         llEmptyState = view.findViewById(R.id.ll_empty_state);
+        llTaskSummary = view.findViewById(R.id.ll_task_summary);
         tvSelectedDate = view.findViewById(R.id.tv_selected_date);
+        tvTaskCount = view.findViewById(R.id.tv_task_count);
+        tvCompletedCount = view.findViewById(R.id.tv_completed_count);
         fabAddTask = view.findViewById(R.id.fab_add_task);
     }
 
@@ -81,7 +86,6 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
     }
 
     private void setupCalendar() {
-        // Set initial selected date to today
         selectedDate = DateUtils.getStartOfDay(System.currentTimeMillis());
         updateSelectedDateText();
 
@@ -95,14 +99,13 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
             showTasksForSelectedDate();
         });
 
-        // Set min date to show past tasks
         Calendar minDate = Calendar.getInstance();
-        minDate.add(Calendar.YEAR, -1); // Show tasks from 1 year ago
+        minDate.add(Calendar.YEAR, -1);
         calendarView.setMinDate(minDate.getTimeInMillis());
 
         // Set max date to show future tasks
         Calendar maxDate = Calendar.getInstance();
-        maxDate.add(Calendar.YEAR, 2); // Show tasks up to 2 years in future
+        maxDate.add(Calendar.YEAR, 2);
         calendarView.setMaxDate(maxDate.getTimeInMillis());
     }
 
@@ -110,7 +113,6 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
         fabAddTask.setOnClickListener(v -> {
             CreateTaskFragment createFragment = new CreateTaskFragment();
 
-            // Pass selected date to CreateTaskFragment if needed
             Bundle args = new Bundle();
             args.putLong("selected_date", selectedDate);
             createFragment.setArguments(args);
@@ -125,19 +127,18 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
     private void observeData() {
         String userId = taskViewModel.getCurrentUserId();
         if (userId != null) {
-            // Observe all tasks
             taskViewModel.getAllTasks(userId).observe(getViewLifecycleOwner(), tasks -> {
                 if (tasks != null) {
                     this.allTasks = tasks;
-                    Log.d("CalendarFragment", "Loaded " + tasks.size() + " tasks");
+                    Log.d("CalendarFragment", "Loaded " + tasks.size() + " tasks (including past)");
                     groupTasksByDate();
                     showTasksForSelectedDate();
+                    updateCalendarIndicators();
                 } else {
                     Log.d("CalendarFragment", "No tasks loaded");
                 }
             });
 
-            // Observe categories for color coding
             createTaskViewModel.getAllCategories().observe(getViewLifecycleOwner(), categoryList -> {
                 if (categoryList != null) {
                     this.categories = categoryList;
@@ -148,7 +149,6 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
             });
         }
 
-        // Observe task completion result
         taskViewModel.getTaskCompletionResult().observe(getViewLifecycleOwner(), result -> {
             if (result != null) {
                 if (result.isSuccess()) {
@@ -194,14 +194,46 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
         List<TaskEntity> dayTasks = tasksByDate.get(selectedDate);
 
         if (dayTasks == null || dayTasks.isEmpty()) {
-            // Show empty state
             rvDayTasks.setVisibility(View.GONE);
             llEmptyState.setVisibility(View.VISIBLE);
+            llTaskSummary.setVisibility(View.GONE);
         } else {
-            // Show tasks for the day
             rvDayTasks.setVisibility(View.VISIBLE);
             llEmptyState.setVisibility(View.GONE);
+            llTaskSummary.setVisibility(View.VISIBLE);
+
             taskAdapter.updateTasks(dayTasks);
+            updateTaskSummary(dayTasks);
+        }
+    }
+
+    private void updateTaskSummary(List<TaskEntity> dayTasks) {
+        int totalTasks = dayTasks.size();
+        int completedTasks = 0;
+
+        for (TaskEntity task : dayTasks) {
+            if (task.status == TaskEntity.STATUS_COMPLETED) {
+                completedTasks++;
+            }
+        }
+
+        int percentage = 0;
+        if (totalTasks > 0) {
+            percentage = Math.round((float) completedTasks * 100 / totalTasks);
+        }
+
+        tvTaskCount.setText("Ukupno: " + totalTasks);
+        tvCompletedCount.setText("Završeno: " + completedTasks);
+
+        TextView tvPercentage = llTaskSummary.findViewById(R.id.tv_percentage);
+        if (tvPercentage != null) {
+            tvPercentage.setText(percentage + "%");
+        }
+
+        if (completedTasks == totalTasks && totalTasks > 0) {
+            tvCompletedCount.setTextColor(ContextCompat.getColor(requireContext(), R.color.task_completed));
+        } else {
+            tvCompletedCount.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
         }
     }
 
@@ -218,15 +250,15 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
         tvSelectedDate.setText(dateText);
     }
 
-    // TaskAdapter.OnTaskActionListener implementation
+    // TODO: Implement visual indicators on calendar
+    private void updateCalendarIndicators() {
+
+        Log.d("CalendarFragment", "Calendar has tasks on " + tasksByDate.size() + " days");
+    }
+
     @Override
     public void onTaskClick(TaskEntity task) {
-        // Navigate to task details
-        TaskDetailFragment detailFragment = new TaskDetailFragment();
-        Bundle args = new Bundle();
-        args.putLong("task_id", task.id);
-        detailFragment.setArguments(args);
-
+        TaskDetailFragment detailFragment = TaskDetailFragment.newInstance(task.id);
         getParentFragmentManager().beginTransaction()
                 .replace(R.id.fragment_container, detailFragment)
                 .addToBackStack(null)
@@ -253,7 +285,6 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
         Toast.makeText(requireContext(), "Zadatak obrisan", Toast.LENGTH_SHORT).show();
     }
 
-    // NEW: Added missing interface methods
     @Override
     public void onTaskPause(TaskEntity task) {
         if (task.status == TaskEntity.STATUS_ACTIVE) {
@@ -275,7 +306,6 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
         }
     }
 
-    // Custom adapter for calendar tasks with category colors
     private static class CalendarTaskAdapter extends TaskAdapter {
         private List<CategoryEntity> categories;
         private Map<Long, String> categoryColors;
@@ -310,9 +340,22 @@ public class CalendarFragment extends Fragment implements TaskAdapter.OnTaskActi
                 String colorHex = categoryColors.get(task.categoryId);
                 try {
                     int color = android.graphics.Color.parseColor(colorHex);
-                    holder.itemView.findViewById(R.id.status_indicator).setBackgroundColor(color);
+
+                    View statusIndicator = holder.itemView.findViewById(R.id.status_indicator);
+                    if (statusIndicator != null) {
+                        statusIndicator.setBackgroundColor(color);
+                    }
+
+                    View cardView = holder.itemView.findViewById(R.id.card_task);
+                    if (cardView != null) {
+                        GradientDrawable border = new GradientDrawable();
+                        border.setColor(android.graphics.Color.TRANSPARENT);
+                        border.setStroke(4, color);
+                        border.setCornerRadius(12);
+                        cardView.setBackground(border);
+                    }
+
                 } catch (Exception e) {
-                    // Use default color if parsing fails
                     Log.w("CalendarTaskAdapter", "Failed to parse color: " + colorHex);
                 }
             }

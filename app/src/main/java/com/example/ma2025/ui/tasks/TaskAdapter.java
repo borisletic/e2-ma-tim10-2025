@@ -299,7 +299,6 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
 
                 case TaskEntity.STATUS_FAILED:
                 case TaskEntity.STATUS_CANCELED:
-                    btnDelete.setVisibility(View.VISIBLE);
                     break;
 
                 default:

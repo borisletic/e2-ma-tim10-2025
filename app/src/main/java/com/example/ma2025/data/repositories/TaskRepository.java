@@ -56,6 +56,38 @@ public class TaskRepository {
         return INSTANCE;
     }
 
+    // ========== GRACE PERIOD SYSTEM ==========
+
+    /**
+     * Automatski označava zadatke koji su prošli grace period kao neurađene
+     */
+    public void expireOverdueTasks(String userId) {
+        executor.execute(() -> {
+            try {
+                long now = System.currentTimeMillis();
+                long expirationThreshold = now - TaskEntity.GRACE_PERIOD_MILLIS;
+
+                // Pronađi sve aktivne zadatke koji su prošli grace period
+                List<TaskEntity> expiredTasks = taskDao.getExpiredActiveTasks(userId, expirationThreshold);
+
+                for (TaskEntity task : expiredTasks) {
+                    // Označi kao neurađen
+                    task.markFailed();
+                    taskDao.updateTask(task);
+
+                    Log.d(TAG, "Task expired: " + task.title + " (due: " + task.dueTime + ")");
+                }
+
+                if (!expiredTasks.isEmpty()) {
+                    Log.d(TAG, "Expired " + expiredTasks.size() + " overdue tasks");
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error expiring overdue tasks", e);
+            }
+        });
+    }
+
     // ========== TASK OPERATIONS ==========
 
     public LiveData<TaskEntity> getTaskById(long taskId) {
@@ -102,7 +134,6 @@ public class TaskRepository {
         return taskDao.getTasksForDateRange(userId, startOfDay, endOfDay);
     }
 
-    // Get tasks for current and future dates (for list view)
     public LiveData<List<TaskEntity>> getCurrentAndFutureTasks(String userId) {
         long now = System.currentTimeMillis();
         return taskDao.getTasksForDateRange(userId, now, Long.MAX_VALUE);
@@ -114,12 +145,10 @@ public class TaskRepository {
                 long taskId = taskDao.insertTask(task);
                 task.id = taskId;
 
-                // Generate instances for repeating tasks
                 if (task.isRepeating) {
                     generateRepeatingTaskInstances(task);
                 }
 
-                // Sync to Firebase in background
                 syncTaskToFirebase(task);
 
                 if (callback != null) {
@@ -149,11 +178,8 @@ public class TaskRepository {
                     " with interval " + intervalInMillis);
 
             int instanceCount = 0;
-            while (currentDate <= originalTask.endDate && instanceCount < 1000) { // safety limit
-                // Create a new task instance for each occurrence
+            while (currentDate <= originalTask.endDate && instanceCount < 1000) {
                 TaskEntity instance = createTaskInstance(originalTask, currentDate);
-
-                // Insert the instance synchronously since we're already in executor
                 long instanceId = taskDao.insertTask(instance);
                 Log.d(TAG, "Created task instance with ID: " + instanceId + " for date: " + currentDate);
 
@@ -176,10 +202,10 @@ public class TaskRepository {
         instance.categoryId = original.categoryId;
         instance.difficulty = original.difficulty;
         instance.importance = original.importance;
-        instance.isRepeating = false; // Instances are not repeating
+        instance.isRepeating = false;
         instance.dueTime = dueTime;
         instance.status = TaskEntity.STATUS_ACTIVE;
-        instance.parentTaskId = original.id; // Povezuje sa master zadatkom
+        instance.parentTaskId = original.id;
 
         return instance;
     }
@@ -187,10 +213,8 @@ public class TaskRepository {
     public void updateRecurringTaskFutureInstances(TaskEntity masterTask) {
         executor.execute(() -> {
             try {
-                // Ažuriraj master zadatak
                 taskDao.updateTask(masterTask);
 
-                // Ažuriraj sve buduće (active/paused) instance sa novim podacima
                 taskDao.updateFutureInstancesOfRecurringTask(
                         masterTask.id,
                         masterTask.title,
@@ -211,14 +235,14 @@ public class TaskRepository {
         switch (unit.toLowerCase()) {
             case "dan":
             case "day":
-                baseUnit = 24 * 60 * 60 * 1000L; // 1 day in milliseconds
+                baseUnit = 24 * 60 * 60 * 1000L;
                 break;
             case "nedelja":
             case "week":
-                baseUnit = 7 * 24 * 60 * 60 * 1000L; // 1 week in milliseconds
+                baseUnit = 7 * 24 * 60 * 60 * 1000L;
                 break;
             default:
-                baseUnit = 24 * 60 * 60 * 1000L; // Default to day
+                baseUnit = 24 * 60 * 60 * 1000L;
                 Log.w(TAG, "Unknown repeat unit: " + unit + ", defaulting to day");
         }
 
@@ -227,6 +251,12 @@ public class TaskRepository {
 
     public void updateTask(TaskEntity task) {
         executor.execute(() -> {
+            // NOVO: Proveri da li zadatak može da se ažurira
+            if (!task.canBeModified()) {
+                Log.w(TAG, "Cannot modify failed task: " + task.title);
+                return;
+            }
+
             taskDao.updateTask(task);
             syncTaskToFirebase(task);
         });
@@ -234,8 +264,13 @@ public class TaskRepository {
 
     public void deleteTask(TaskEntity task) {
         executor.execute(() -> {
+            // NOVO: Proveri da li zadatak može da se obriše
+            if (!task.canBeDeleted()) {
+                Log.w(TAG, "Cannot delete failed task: " + task.title);
+                return;
+            }
+
             taskDao.deleteTask(task);
-            // Also delete from Firebase if synced
             if (task.firebaseId != null) {
                 deleteTaskFromFirebase(task.firebaseId);
             }
@@ -249,7 +284,6 @@ public class TaskRepository {
                 if (task != null && task.isRepeating) {
                     long masterTaskId = (task.parentTaskId != null) ? task.parentTaskId : task.id;
 
-                    // Pozovite metodu sa eksplicitnim parametrom
                     taskDao.deleteRecurringTaskAndFutureInstances(masterTaskId, TaskEntity.STATUS_COMPLETED);
 
                     if (task.firebaseId != null) {
@@ -274,21 +308,133 @@ public class TaskRepository {
         return taskDao.getTasksForDateRange(userId, startTime, endTime);
     }
 
-    // ========== NEW STATUS OPERATIONS ==========
+    // ========== TASK COMPLETION WITH GRACE PERIOD ==========
+
+    public void completeTask(long taskId, String userId, OnTaskCompletedCallback callback) {
+        executor.execute(() -> {
+            try {
+                TaskEntity task = taskDao.getTaskByIdSync(taskId);
+                if (task == null || task.isCompleted()) {
+                    if (callback != null) {
+                        callback.onError("Task not found or already completed");
+                    }
+                    return;
+                }
+
+                if (!task.canBeCompleted()) {
+                    String errorMessage;
+                    if (task.isExpired()) {
+                        errorMessage = "Zadatak je prosao grace period od 3 dana i ne može se više završiti";
+                    } else if (task.status == TaskEntity.STATUS_FAILED) {
+                        errorMessage = "Neurađen zadatak se ne može označiti kao završen";
+                    } else if (task.status == TaskEntity.STATUS_CANCELED) {
+                        errorMessage = "Otkazan zadatak se ne može označiti kao završen";
+                    } else if (task.status == TaskEntity.STATUS_PAUSED) {
+                        errorMessage = "Pauziran zadatak se ne može označiti kao završen. Prvo ga aktivirajte.";
+                    } else {
+                        errorMessage = "Zadatak se ne može završiti";
+                    }
+
+                    if (callback != null) {
+                        callback.onError(errorMessage);
+                    }
+                    return;
+                }
+
+                UserProgressEntity userProgress = userProgressDao.getUserProgressSync(userId);
+                if (userProgress == null) {
+                    userProgress = new UserProgressEntity(userId);
+                    userProgressDao.insertOrUpdateUserProgress(userProgress);
+                }
+
+                int xpEarned = 0;
+
+                if (task.isEligibleForXp()) {
+                    xpEarned = task.calculateXpValue(userProgress.currentLevel);
+
+                    if (!canEarnXpForTask(task, userId)) {
+                        xpEarned = 0;
+                    }
+                } else {
+                    Log.d(TAG, "Task not eligible for XP: status=" + task.status);
+                }
+
+                task.markCompleted();
+                taskDao.updateTask(task);
+
+                if (!task.canEarnXp()) {
+                    xpEarned = 0;
+                    Log.d(TAG, "Task cannot earn XP after completion check");
+                }
+
+                TaskCompletionEntity completion = new TaskCompletionEntity(taskId, xpEarned);
+                taskCompletionDao.insertTaskCompletion(completion);
+
+                if (xpEarned > 0) {
+                    userProgress.addXp(xpEarned);
+
+                    int requiredXp = GameLogicUtils.calculateXpForLevel(userProgress.currentLevel + 1);
+                    if (userProgress.currentXp >= requiredXp) {
+                        int newLevel = userProgress.currentLevel + 1;
+                        int ppGained = GameLogicUtils.calculatePpForLevel(newLevel);
+                        userProgress.levelUp(newLevel, ppGained);
+                    }
+
+                    userProgressDao.updateUserProgress(userProgress);
+                }
+
+                updateDailyStats(userId, task, xpEarned);
+                updateStreak(userId);
+
+                syncTaskToFirebase(task);
+                syncUserProgressToFirebase(userProgress);
+
+                if (callback != null) {
+                    callback.onSuccess(xpEarned, userProgress.currentLevel);
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error completing task", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
+    // ========== TASK STATUS CHANGES WITH GRACE PERIOD ==========
 
     public void pauseTask(long taskId, String userId, OnTaskStatusChangeCallback callback) {
         executor.execute(() -> {
             try {
                 TaskEntity task = taskDao.getTaskByIdSync(taskId);
-                if (task == null || task.status != TaskEntity.STATUS_ACTIVE) {
+                if (task == null) {
                     if (callback != null) {
-                        callback.onError("Task not found or not active");
+                        callback.onError("Task not found");
                     }
                     return;
                 }
 
-                task.status = TaskEntity.STATUS_PAUSED;
-                task.updatedAt = System.currentTimeMillis();
+                // NOVO: Proveri da li zadatak može da se pauzira
+                if (!task.canBePaused()) {
+                    String errorMessage;
+                    if (!task.canBeModified()) {
+                        errorMessage = "Neurađen zadatak se ne može pauzirati";
+                    } else if (!task.isRepeating) {
+                        errorMessage = "Samo ponavljajući zadaci mogu biti pauzirani";
+                    } else if (task.status != TaskEntity.STATUS_ACTIVE) {
+                        errorMessage = "Zadatak mora biti aktivan da bi mogao da se pauzira";
+                    } else {
+                        errorMessage = "Zadatak se ne može pauzirati";
+                    }
+
+                    if (callback != null) {
+                        callback.onError(errorMessage);
+                    }
+                    return;
+                }
+
+                task.pause();
                 taskDao.updateTask(task);
 
                 syncTaskToFirebase(task);
@@ -310,15 +456,31 @@ public class TaskRepository {
         executor.execute(() -> {
             try {
                 TaskEntity task = taskDao.getTaskByIdSync(taskId);
-                if (task == null || task.status != TaskEntity.STATUS_PAUSED) {
+                if (task == null) {
                     if (callback != null) {
-                        callback.onError("Task not found or not paused");
+                        callback.onError("Task not found");
                     }
                     return;
                 }
 
-                task.status = TaskEntity.STATUS_ACTIVE;
-                task.updatedAt = System.currentTimeMillis();
+                // NOVO: Proveri da li zadatak može da se nastavi
+                if (!task.canBeResumed()) {
+                    String errorMessage;
+                    if (!task.canBeModified()) {
+                        errorMessage = "Neurađen zadatak se ne može nastaviti";
+                    } else if (task.status != TaskEntity.STATUS_PAUSED) {
+                        errorMessage = "Zadatak mora biti pauziran da bi mogao da se nastavi";
+                    } else {
+                        errorMessage = "Zadatak se ne može nastaviti";
+                    }
+
+                    if (callback != null) {
+                        callback.onError(errorMessage);
+                    }
+                    return;
+                }
+
+                task.activate();
                 taskDao.updateTask(task);
 
                 syncTaskToFirebase(task);
@@ -347,8 +509,23 @@ public class TaskRepository {
                     return;
                 }
 
-                task.status = TaskEntity.STATUS_CANCELED;
-                task.updatedAt = System.currentTimeMillis();
+                if (!task.canBeModified()) {
+                    String errorMessage;
+                    if (task.status == TaskEntity.STATUS_FAILED) {
+                        errorMessage = "Neurađen zadatak se ne može otkazati";
+                    } else if (task.status == TaskEntity.STATUS_CANCELED) {
+                        errorMessage = "Zadatak je već otkazan";
+                    } else {
+                        errorMessage = "Zadatak se ne može otkazati";
+                    }
+
+                    if (callback != null) {
+                        callback.onError(errorMessage);
+                    }
+                    return;
+                }
+
+                task.markCanceled();
                 taskDao.updateTask(task);
 
                 syncTaskToFirebase(task);
@@ -366,6 +543,35 @@ public class TaskRepository {
         });
     }
 
+    public void failTask(long taskId, String userId, OnTaskCompletedCallback callback) {
+        executor.execute(() -> {
+            try {
+                TaskEntity task = taskDao.getTaskByIdSync(taskId);
+                if (task == null || task.status != TaskEntity.STATUS_ACTIVE) {
+                    if (callback != null) {
+                        callback.onError("Task not found or not active");
+                    }
+                    return;
+                }
+
+                task.markFailed();
+                taskDao.updateTask(task);
+
+                updateDailyStatsForFailedTask(userId, task);
+
+                if (callback != null) {
+                    callback.onSuccess(0, 0);
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error failing task", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+
     // ========== BATCH OPERATIONS ==========
 
     public void completeBatchTasks(List<Long> taskIds, String userId, OnBatchOperationCallback callback) {
@@ -374,7 +580,6 @@ public class TaskRepository {
                 int completedCount = 0;
                 int totalXpEarned = 0;
 
-                // Get user progress once for XP calculations
                 UserProgressEntity userProgress = userProgressDao.getUserProgressSync(userId);
                 if (userProgress == null) {
                     userProgress = new UserProgressEntity(userId);
@@ -383,40 +588,32 @@ public class TaskRepository {
 
                 for (Long taskId : taskIds) {
                     TaskEntity task = taskDao.getTaskByIdSync(taskId);
-                    if (task != null && task.status == TaskEntity.STATUS_ACTIVE) {
+                    if (task != null && task.canBeCompleted()) {
 
-                        // Calculate XP
                         int xpEarned = task.calculateXpValue(userProgress.currentLevel);
 
-                        // Check quotas
                         if (!canEarnXpForTask(task, userId)) {
                             xpEarned = 0;
                         }
 
-                        // Mark task as completed
                         task.markCompleted();
                         taskDao.updateTask(task);
 
-                        // Record completion
                         TaskCompletionEntity completion = new TaskCompletionEntity(taskId, xpEarned);
                         taskCompletionDao.insertTaskCompletion(completion);
 
-                        // Update daily stats
                         updateDailyStats(userId, task, xpEarned);
 
                         totalXpEarned += xpEarned;
                         completedCount++;
 
-                        // Sync to Firebase
                         syncTaskToFirebase(task);
                     }
                 }
 
-                // Update user progress with total XP
                 if (totalXpEarned > 0) {
                     userProgress.addXp(totalXpEarned);
 
-                    // Check for level up
                     int requiredXp = GameLogicUtils.calculateXpForLevel(userProgress.currentLevel + 1);
                     if (userProgress.currentXp >= requiredXp) {
                         int newLevel = userProgress.currentLevel + 1;
@@ -428,7 +625,6 @@ public class TaskRepository {
                     syncUserProgressToFirebase(userProgress);
                 }
 
-                // Update streak
                 updateStreak(userId);
 
                 if (callback != null) {
@@ -448,17 +644,94 @@ public class TaskRepository {
         executor.execute(() -> {
             try {
                 for (TaskEntity task : tasks) {
-                    taskDao.deleteTask(task);
+                    if (task.canBeDeleted()) {
+                        taskDao.deleteTask(task);
 
-                    // Delete from Firebase if synced
-                    if (task.firebaseId != null) {
-                        deleteTaskFromFirebase(task.firebaseId);
+                        if (task.firebaseId != null) {
+                            deleteTaskFromFirebase(task.firebaseId);
+                        }
                     }
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error in batch task deletion", e);
             }
         });
+    }
+
+    // ========== XP QUOTA SYSTEM ==========
+
+    private boolean canEarnXpForTask(TaskEntity task, String userId) {
+        if (!checkDifficultyQuota(task.difficulty, userId)) {
+            return false;
+        }
+
+        if (!checkImportanceQuota(task.importance, userId)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean checkDifficultyQuota(int difficulty, String userId) {
+        switch (difficulty) {
+            case TaskEntity.DIFFICULTY_VERY_EASY:
+                return getDailyCompletedCount(userId, difficulty) < 5;
+
+            case TaskEntity.DIFFICULTY_EASY:
+                return getDailyCompletedCount(userId, difficulty) < 5;
+
+            case TaskEntity.DIFFICULTY_HARD:
+                return getDailyCompletedCount(userId, difficulty) < 2;
+
+            case TaskEntity.DIFFICULTY_EXTREME:
+                return getWeeklyCompletedCount(userId, difficulty) < 1;
+
+            default:
+                return true;
+        }
+    }
+
+    private boolean checkImportanceQuota(int importance, String userId) {
+        switch (importance) {
+            case TaskEntity.IMPORTANCE_NORMAL:
+                return getDailyCompletedCountByImportance(userId, importance) < 5;
+
+            case TaskEntity.IMPORTANCE_IMPORTANT:
+                return getDailyCompletedCountByImportance(userId, importance) < 5;
+
+            case TaskEntity.IMPORTANCE_VERY_IMPORTANT:
+                return getDailyCompletedCountByImportance(userId, importance) < 2;
+
+            case TaskEntity.IMPORTANCE_SPECIAL:
+                return getMonthlyCompletedCountByImportance(userId, importance) < 1;
+
+            default:
+                return true;
+        }
+    }
+
+    private int getDailyCompletedCount(String userId, int difficulty) {
+        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
+        long tomorrow = today + 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByDifficultyAndDateRange(userId, difficulty, today, tomorrow);
+    }
+
+    private int getDailyCompletedCountByImportance(String userId, int importance) {
+        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
+        long tomorrow = today + 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, today, tomorrow);
+    }
+
+    private int getWeeklyCompletedCount(String userId, int difficulty) {
+        long startOfWeek = DateUtils.getStartOfWeek(System.currentTimeMillis());
+        long endOfWeek = startOfWeek + 7 * 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByDifficultyAndDateRange(userId, difficulty, startOfWeek, endOfWeek);
+    }
+
+    private int getMonthlyCompletedCountByImportance(String userId, int importance) {
+        long startOfMonth = DateUtils.getStartOfMonth(System.currentTimeMillis());
+        long endOfMonth = DateUtils.getEndOfMonth(System.currentTimeMillis());
+        return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, startOfMonth, endOfMonth);
     }
 
     // ========== STATISTICS ==========
@@ -471,13 +744,11 @@ public class TaskRepository {
                 int totalTasks = taskDao.getTotalTasks(userId);
                 int completedTasks = taskDao.getTotalCompletedTasks(userId);
 
-                // Count tasks by status
                 int activeTasks = 0;
                 int failedTasks = 0;
                 int pausedTasks = 0;
                 int canceledTasks = 0;
 
-                // Get all tasks and count by status
                 List<TaskEntity> allTasks = taskDao.getAllTasks(userId).getValue();
                 if (allTasks != null) {
                     for (TaskEntity task : allTasks) {
@@ -513,154 +784,6 @@ public class TaskRepository {
         });
 
         return statisticsLiveData;
-    }
-
-    // ========== TASK COMPLETION (EXISTING) ==========
-
-    public void completeTask(long taskId, String userId, OnTaskCompletedCallback callback) {
-        executor.execute(() -> {
-            try {
-                TaskEntity task = taskDao.getTaskByIdSync(taskId);
-                if (task == null || task.isCompleted()) {
-                    if (callback != null) {
-                        callback.onError("Task not found or already completed");
-                    }
-                    return;
-                }
-
-                UserProgressEntity userProgress = userProgressDao.getUserProgressSync(userId);
-                if (userProgress == null) {
-                    userProgress = new UserProgressEntity(userId);
-                    userProgressDao.insertOrUpdateUserProgress(userProgress);
-                }
-
-                int xpEarned = task.calculateXpValue(userProgress.currentLevel);
-
-                if (!canEarnXpForTask(task, userId)) {
-                    xpEarned = 0;
-                }
-
-                task.markCompleted();
-                taskDao.updateTask(task);
-
-                TaskCompletionEntity completion = new TaskCompletionEntity(taskId, xpEarned);
-                taskCompletionDao.insertTaskCompletion(completion);
-
-                if (xpEarned > 0) {
-                    userProgress.addXp(xpEarned);
-
-                    int requiredXp = GameLogicUtils.calculateXpForLevel(userProgress.currentLevel + 1);
-                    if (userProgress.currentXp >= requiredXp) {
-                        int newLevel = userProgress.currentLevel + 1;
-                        int ppGained = GameLogicUtils.calculatePpForLevel(newLevel);
-                        userProgress.levelUp(newLevel, ppGained);
-                    }
-
-                    userProgressDao.updateUserProgress(userProgress);
-                }
-
-                updateDailyStats(userId, task, xpEarned);
-
-                updateStreak(userId);
-
-                syncTaskToFirebase(task);
-                syncUserProgressToFirebase(userProgress);
-
-                if (callback != null) {
-                    callback.onSuccess(xpEarned, userProgress.currentLevel);
-                }
-
-            } catch (Exception e) {
-                Log.e(TAG, "Error completing task", e);
-                if (callback != null) {
-                    callback.onError(e.getMessage());
-                }
-            }
-        });
-    }
-
-    private boolean canEarnXpForTask(TaskEntity task, String userId) {
-        // Check difficulty quota
-        if (!checkDifficultyQuota(task.difficulty, userId)) {
-            return false;
-        }
-
-        // Check importance quota
-        if (!checkImportanceQuota(task.importance, userId)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private boolean checkDifficultyQuota(int difficulty, String userId) {
-        switch (difficulty) {
-            case TaskEntity.DIFFICULTY_VERY_EASY:
-                // Veoma lak - max 5 dnevno
-                return getDailyCompletedCount(userId, difficulty) < 5;
-
-            case TaskEntity.DIFFICULTY_EASY:
-                // Lak - max 5 dnevno
-                return getDailyCompletedCount(userId, difficulty) < 5;
-
-            case TaskEntity.DIFFICULTY_HARD:
-                // Težak - max 2 dnevno
-                return getDailyCompletedCount(userId, difficulty) < 2;
-
-            case TaskEntity.DIFFICULTY_EXTREME:
-                // Ekstremno težak - max 1 nedeljno
-                return getWeeklyCompletedCount(userId, difficulty) < 1;
-
-            default:
-                return true;
-        }
-    }
-
-    private boolean checkImportanceQuota(int importance, String userId) {
-        switch (importance) {
-            case TaskEntity.IMPORTANCE_NORMAL:
-                // Normalan - max 5 dnevno
-                return getDailyCompletedCountByImportance(userId, importance) < 5;
-
-            case TaskEntity.IMPORTANCE_IMPORTANT:
-                // Važan - max 5 dnevno
-                return getDailyCompletedCountByImportance(userId, importance) < 5;
-
-            case TaskEntity.IMPORTANCE_VERY_IMPORTANT:
-                // Ekstremno važan - max 2 dnevno
-                return getDailyCompletedCountByImportance(userId, importance) < 2;
-
-            case TaskEntity.IMPORTANCE_SPECIAL:
-                // Specijalan - max 1 mesečno
-                return getMonthlyCompletedCountByImportance(userId, importance) < 1;
-
-            default:
-                return true;
-        }
-    }
-
-    private int getDailyCompletedCount(String userId, int difficulty) {
-        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
-        long tomorrow = today + 24 * 60 * 60 * 1000;
-        return taskDao.getCompletedTasksCountByDifficultyAndDateRange(userId, difficulty, today, tomorrow);
-    }
-
-    private int getDailyCompletedCountByImportance(String userId, int importance) {
-        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
-        long tomorrow = today + 24 * 60 * 60 * 1000;
-        return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, today, tomorrow);
-    }
-
-    private int getWeeklyCompletedCount(String userId, int difficulty) {
-        long startOfWeek = DateUtils.getStartOfWeek(System.currentTimeMillis());
-        long endOfWeek = startOfWeek + 7 * 24 * 60 * 60 * 1000;
-        return taskDao.getCompletedTasksCountByDifficultyAndDateRange(userId, difficulty, startOfWeek, endOfWeek);
-    }
-
-    private int getMonthlyCompletedCountByImportance(String userId, int importance) {
-        long startOfMonth = DateUtils.getStartOfMonth(System.currentTimeMillis());
-        long endOfMonth = DateUtils.getEndOfMonth(System.currentTimeMillis());
-        return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, startOfMonth, endOfMonth);
     }
 
     private void updateDailyStats(String userId, TaskEntity task, int xpEarned) {
@@ -707,12 +830,25 @@ public class TaskRepository {
         return streak;
     }
 
+    private void updateDailyStatsForFailedTask(String userId, TaskEntity task) {
+        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
+        DailyStatsEntity stats = dailyStatsDao.getDailyStats(userId, today);
+
+        if (stats == null) {
+            stats = new DailyStatsEntity(userId, today);
+        }
+
+        stats.incrementTaskFailed();
+        dailyStatsDao.insertOrUpdateDailyStats(stats);
+    }
+
+    // ========== FIREBASE SYNC ==========
+
     private void syncTaskToFirebase(TaskEntity task) {
         if (task.syncedToFirebase) return;
 
         executor.execute(() -> {
             try {
-                // TODO: Implement full Firebase sync
                 task.syncedToFirebase = true;
                 taskDao.updateTask(task);
             } catch (Exception e) {
@@ -727,26 +863,6 @@ public class TaskRepository {
 
     private void deleteTaskFromFirebase(String firebaseId) {
         // TODO: Delete task from Firebase
-    }
-
-    public interface OnTaskInsertedCallback {
-        void onSuccess(long taskId);
-        void onError(String error);
-    }
-
-    public interface OnTaskCompletedCallback {
-        void onSuccess(int xpEarned, int newLevel);
-        void onError(String error);
-    }
-
-    public interface OnTaskStatusChangeCallback {
-        void onSuccess(String message);
-        void onError(String error);
-    }
-
-    public interface OnBatchOperationCallback {
-        void onSuccess(int count, int totalXp);
-        void onError(String error);
     }
 
     // ========== STATISTICS (EXISTING) ==========
@@ -769,47 +885,25 @@ public class TaskRepository {
         });
     }
 
-    public void failTask(long taskId, String userId, OnTaskCompletedCallback callback) {
-        executor.execute(() -> {
-            try {
-                TaskEntity task = taskDao.getTaskByIdSync(taskId);
-                if (task == null || task.status != TaskEntity.STATUS_ACTIVE) {
-                    if (callback != null) {
-                        callback.onError("Task not found or not active");
-                    }
-                    return;
-                }
+    // ========== CALLBACK INTERFACES ==========
 
-                // Mark task as failed
-                task.status = TaskEntity.STATUS_FAILED;
-                task.updatedAt = System.currentTimeMillis();
-                taskDao.updateTask(task);
-
-                // Update daily stats
-                updateDailyStatsForFailedTask(userId, task);
-
-                if (callback != null) {
-                    callback.onSuccess(0, 0); // No XP for failed tasks
-                }
-
-            } catch (Exception e) {
-                Log.e(TAG, "Error failing task", e);
-                if (callback != null) {
-                    callback.onError(e.getMessage());
-                }
-            }
-        });
+    public interface OnTaskInsertedCallback {
+        void onSuccess(long taskId);
+        void onError(String error);
     }
 
-    private void updateDailyStatsForFailedTask(String userId, TaskEntity task) {
-        long today = DateUtils.getStartOfDay(System.currentTimeMillis());
-        DailyStatsEntity stats = dailyStatsDao.getDailyStats(userId, today);
+    public interface OnTaskCompletedCallback {
+        void onSuccess(int xpEarned, int newLevel);
+        void onError(String error);
+    }
 
-        if (stats == null) {
-            stats = new DailyStatsEntity(userId, today);
-        }
+    public interface OnTaskStatusChangeCallback {
+        void onSuccess(String message);
+        void onError(String error);
+    }
 
-        stats.incrementTaskFailed();
-        dailyStatsDao.insertOrUpdateDailyStats(stats);
+    public interface OnBatchOperationCallback {
+        void onSuccess(int count, int totalXp);
+        void onError(String error);
     }
 }

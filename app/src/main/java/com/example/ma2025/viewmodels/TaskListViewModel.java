@@ -68,15 +68,19 @@ public class TaskListViewModel extends AndroidViewModel {
         return taskRepository.getTasksByStatus(userId, status);
     }
 
-    // Complete a task
     public void completeTask(long taskId) {
         String userId = getCurrentUserId();
         if (userId != null) {
             taskRepository.completeTask(taskId, userId, new TaskRepository.OnTaskCompletedCallback() {
                 @Override
                 public void onSuccess(int xpEarned, int newLevel) {
-                    taskCompletionResult.postValue(new TaskCompletionResult(true,
-                            "Zadatak završen! +" + xpEarned + " XP", xpEarned, newLevel));
+                    String message;
+                    if (xpEarned > 0) {
+                        message = "Zadatak završen! +" + xpEarned + " XP";
+                    } else {
+                        message = "Zadatak završen! (Kvota ispunjena - 0 XP)";
+                    }
+                    taskCompletionResult.postValue(new TaskCompletionResult(true, message, xpEarned, newLevel));
                 }
 
                 @Override

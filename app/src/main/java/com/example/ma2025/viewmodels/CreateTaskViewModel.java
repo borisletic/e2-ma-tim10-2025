@@ -1,6 +1,9 @@
 package com.example.ma2025.viewmodels;
 
 import android.app.Application;
+import android.os.Handler;
+import android.os.Looper;
+
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
@@ -24,14 +27,12 @@ public class CreateTaskViewModel extends AndroidViewModel {
         taskRepository = TaskRepository.getInstance(application);
         categoryRepository = CategoryRepository.getInstance(application);
 
-        // Initialize user progress if needed
         String userId = getCurrentUserId();
         if (userId != null) {
             taskRepository.initializeUserProgress(userId);
         }
     }
 
-    // Get all categories for the current user
     public LiveData<List<CategoryEntity>> getAllCategories() {
         String userId = getCurrentUserId();
         if (userId != null) {
@@ -40,14 +41,11 @@ public class CreateTaskViewModel extends AndroidViewModel {
         return new MutableLiveData<>();
     }
 
-    // Get task by ID for editing
     public LiveData<TaskEntity> getTaskById(long taskId) {
         return taskRepository.getTaskById(taskId);
     }
 
-    // Create a new task
     public void createTask(TaskEntity task) {
-        // Validacija pre kreiranja
         TaskValidationResult validation = validateTask(task);
         if (!validation.isValid()) {
             taskCreationResult.postValue(new TaskCreationResult(false, validation.getErrorMessage(), -1));
@@ -68,16 +66,13 @@ public class CreateTaskViewModel extends AndroidViewModel {
         });
     }
 
-    // Update existing task
     public void updateTask(TaskEntity task) {
-        // Proveri da li se zadatak može uređivati
         if (!canTaskBeEdited(task)) {
             taskCreationResult.postValue(new TaskCreationResult(false,
                     "Završeni ili neurađeni zadaci se ne mogu menjati", -1));
             return;
         }
 
-        // Validacija pre ažuriranja
         TaskValidationResult validation = validateTaskForUpdate(task);
         if (!validation.isValid()) {
             taskCreationResult.postValue(new TaskCreationResult(false, validation.getErrorMessage(), -1));
@@ -88,7 +83,6 @@ public class CreateTaskViewModel extends AndroidViewModel {
             task.updatedAt = System.currentTimeMillis();
             task.syncedToFirebase = false;
 
-            // Ako je ponavljajući zadatak, ažuriraj samo buduće instance
             if (task.isRepeating) {
                 updateRecurringTaskFutureInstances(task);
             } else {
@@ -101,59 +95,78 @@ public class CreateTaskViewModel extends AndroidViewModel {
         }
     }
 
-    // Proveri da li se zadatak može uređivati
     private boolean canTaskBeEdited(TaskEntity task) {
-        // Ne mogu se menjati završeni, neurađeni ili otkazani zadaci
         return task.status == TaskEntity.STATUS_ACTIVE || task.status == TaskEntity.STATUS_PAUSED;
     }
 
-    // Ažuriraj samo buduće instance ponavljajućeg zadatka
     private void updateRecurringTaskFutureInstances(TaskEntity masterTask) {
-        // Ova metoda će ažurirati master zadatak i sve buduće (nepokretnute) instance
-        // Implementacija će biti u TaskRepository
         taskRepository.updateRecurringTaskFutureInstances(masterTask);
     }
 
-    // Get current user ID from Firebase Auth
     public String getCurrentUserId() {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         return currentUser != null ? currentUser.getUid() : null;
     }
 
-    // Get task creation result
     public LiveData<TaskCreationResult> getTaskCreationResult() {
         return taskCreationResult;
     }
 
-    // Clear the result after handling
     public void clearResult() {
         taskCreationResult.setValue(null);
     }
 
-    // Validate task creation constraints
+    public void deleteCategory(CategoryEntity category) {
+        categoryRepository.deleteCategory(category, new CategoryRepository.OnCategoryOperationCallback() {
+            @Override
+            public void onSuccess(String message) {
+            }
+
+            @Override
+            public void onError(String error) {
+            }
+        });
+    }
+
+    public void updateCategory(CategoryEntity category, CategoryRepository.OnCategoryOperationCallback callback) {
+        categoryRepository.updateCategory(category, new CategoryRepository.OnCategoryOperationCallback() {
+            @Override
+            public void onSuccess(String message) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (callback != null) {
+                        callback.onSuccess(message);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (callback != null) {
+                        callback.onError(error);
+                    }
+                });
+            }
+        });
+    }
+
     public TaskValidationResult validateTask(TaskEntity task) {
         return validateTaskCommon(task, false);
     }
 
-    // Validate task for update (less strict on some fields)
     public TaskValidationResult validateTaskForUpdate(TaskEntity task) {
         return validateTaskCommon(task, true);
     }
 
     private TaskValidationResult validateTaskCommon(TaskEntity task, boolean isUpdate) {
-        // Validate task name
         if (task.title == null || task.title.trim().isEmpty()) {
             return new TaskValidationResult(false, "Naziv zadatka je obavezan");
         }
 
-        // Validate user ID
         if (task.userId == null || task.userId.trim().isEmpty()) {
             return new TaskValidationResult(false, "Korisnik nije identifikovan");
         }
 
-        // Category validation je opciona - može biti null
-
-        // Validate difficulty and importance ranges
         if (task.difficulty < 1 || task.difficulty > 4) {
             return new TaskValidationResult(false, "Težina mora biti između 1 i 4");
         }
@@ -162,7 +175,6 @@ public class CreateTaskViewModel extends AndroidViewModel {
             return new TaskValidationResult(false, "Bitnost mora biti između 1 i 4");
         }
 
-        // Validate dates for repeating tasks
         if (task.isRepeating) {
             if (task.startDate == null || task.startDate <= 0) {
                 return new TaskValidationResult(false, "Datum početka je obavezan za ponavljajuće zadatke");
@@ -180,8 +192,6 @@ public class CreateTaskViewModel extends AndroidViewModel {
                 return new TaskValidationResult(false, "Jedinica ponavljanja je obavezna");
             }
         } else {
-            // Validate due time for single tasks
-            // For updates, allow past due times if task is not active
             if (task.dueTime == null) {
                 return new TaskValidationResult(false, "Vreme izvršenja je obavezno");
             }
@@ -190,7 +200,6 @@ public class CreateTaskViewModel extends AndroidViewModel {
                 return new TaskValidationResult(false, "Vreme izvršenja mora biti u budućnosti");
             }
 
-            // For updates, only check future time if task is still active
             if (isUpdate && task.status == TaskEntity.STATUS_ACTIVE && task.dueTime <= System.currentTimeMillis()) {
                 return new TaskValidationResult(false, "Vreme izvršenja mora biti u budućnosti za aktivne zadatke");
             }
@@ -199,7 +208,6 @@ public class CreateTaskViewModel extends AndroidViewModel {
         return new TaskValidationResult(true, "Validacija uspešna");
     }
 
-    // Calculate XP preview for task
     public int calculateXpPreview(int difficulty, int importance, int userLevel) {
         TaskEntity tempTask = new TaskEntity();
         tempTask.difficulty = difficulty;
@@ -208,7 +216,6 @@ public class CreateTaskViewModel extends AndroidViewModel {
         return tempTask.calculateXpValue(userLevel);
     }
 
-    // Get current user level for XP calculation
     public void getCurrentUserLevel(OnUserLevelCallback callback) {
         String userId = getCurrentUserId();
         if (userId != null) {
@@ -224,12 +231,10 @@ public class CreateTaskViewModel extends AndroidViewModel {
         }
     }
 
-    // Get current time for helpers
     public long getCurrentTimeMillis() {
         return System.currentTimeMillis();
     }
 
-    // Get category by ID
     public LiveData<CategoryEntity> getCategoryById(Long categoryId) {
         if (categoryId != null) {
             return categoryRepository.getCategoryById(categoryId.longValue());
@@ -237,7 +242,6 @@ public class CreateTaskViewModel extends AndroidViewModel {
         return new MutableLiveData<>();
     }
 
-    // Result classes
     public static class TaskCreationResult {
         private boolean success;
         private String message;
@@ -268,7 +272,6 @@ public class CreateTaskViewModel extends AndroidViewModel {
         public String getErrorMessage() { return errorMessage; }
     }
 
-    // Callback interfaces
     public interface OnUserLevelCallback {
         void onUserLevel(int level);
     }

@@ -20,18 +20,18 @@ import com.example.ma2025.ui.boss.BossFragment;
 import com.example.ma2025.ui.categories.CategoriesFragment;
 import com.example.ma2025.ui.missions.MissionsFragment;
 import com.example.ma2025.ui.profile.ProfileFragment;
-import com.example.ma2025.ui.statistics.StatisticsFragment;
+import com.example.ma2025.ui.tasks.CalendarFragment;
+import com.example.ma2025.ui.tasks.TaskDetailFragment;
+import com.example.ma2025.ui.tasks.TaskListFragment;
 import com.example.ma2025.ui.levels.LevelsFragment;
 import com.example.ma2025.ui.equipment.EquipmentFragment;
 import com.example.ma2025.ui.friends.FriendsFragment;
 import com.example.ma2025.utils.Constants;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.example.ma2025.utils.TaskScheduler;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -41,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private PreferencesManager preferencesManager;
     private DatabaseManager databaseManager;
+    private TaskScheduler taskScheduler;
 
     private LinearLayout currentSelectedItem;
     private int currentSelectedColor;
@@ -82,13 +83,13 @@ public class MainActivity extends AppCompatActivity {
             // Initialize database manager with error handling
             initializeDatabaseManager();
 
-            // Load default fragment
+            initializeTaskScheduler();
+
             if (savedInstanceState == null) {
                 loadFragment(new ProfileFragment());
                 setSelectedNavigationItem(binding.navProfile);
             }
 
-            // Track app usage
             preferencesManager.incrementAppOpens();
 
         } catch (Exception e) {
@@ -109,6 +110,37 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error initializing Firebase", e);
             Toast.makeText(this, "Greška pri inicijalizaciji Firebase servisa", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void initializeTaskScheduler() {
+        try {
+            taskScheduler = TaskScheduler.getInstance(this);
+
+            if (isUserLoggedIn()) {
+                taskScheduler.startScheduler();
+                Log.d(TAG, "Task scheduler started for logged-in user");
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing task scheduler", e);
+        }
+    }
+
+    public void onUserAuthStateChanged(boolean isLoggedIn) {
+        try {
+            if (taskScheduler != null) {
+                if (isLoggedIn) {
+                    taskScheduler.startScheduler();
+                    taskScheduler.runImmediateCheck(); // Odmah proveri expired tasks
+                    Log.d(TAG, "Task scheduler started after login");
+                } else {
+                    taskScheduler.stopScheduler();
+                    Log.d(TAG, "Task scheduler stopped after logout");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error handling auth state change for task scheduler", e);
         }
     }
 
@@ -141,15 +173,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         try {
-            // Setup click listeners for all navigation items
             binding.navProfile.setOnClickListener(v -> {
                 loadFragment(new ProfileFragment());
                 setSelectedNavigationItem(binding.navProfile);
             });
 
             binding.navTasks.setOnClickListener(v -> {
-                loadFragment(new StatisticsFragment()); // StatisticsFragment is now TaskFragment
+                loadFragment(new TaskListFragment());
                 setSelectedNavigationItem(binding.navTasks);
+            });
+
+            binding.navCalendar.setOnClickListener(v -> {
+                loadFragment(new CalendarFragment());
+                setSelectedNavigationItem(binding.navCalendar);
             });
 
             binding.navCategories.setOnClickListener(v -> {
@@ -192,7 +228,6 @@ public class MainActivity extends AppCompatActivity {
             // Initialize Database Manager
             databaseManager = DatabaseManager.getInstance(this);
 
-            // Initialize user data in local database
             initializeUserDatabase();
 
         } catch (Exception e) {
@@ -215,15 +250,12 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onSuccess(String message) {
                     Log.d(TAG, "Database initialization successful: " + message);
-                    // Optionally sync with Firebase after initialization
                     syncWithFirebase();
                 }
 
                 @Override
                 public void onError(String error) {
                     Log.e(TAG, "Database initialization failed: " + error);
-                    // Don't show error to user immediately, app should still work
-                    // Toast.makeText(MainActivity.this, "Greška pri inicijalizaciji podataka: " + error, Toast.LENGTH_LONG).show();
                 }
             });
 
@@ -248,7 +280,6 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onSyncFailed(String error) {
                     Log.w(TAG, "Firebase sync failed: " + error);
-                    // App should work offline with SQLite, so don't show error
                 }
             });
 
@@ -305,8 +336,9 @@ public class MainActivity extends AppCompatActivity {
         try {
             String userId = preferencesManager.getUserId();
 
+            onUserAuthStateChanged(false);
+
             if (userId != null && databaseManager != null) {
-                // Clear user data from local database
                 databaseManager.clearUserData(userId, new DatabaseManager.OnClearDataCallback() {
                     @Override
                     public void onDataCleared(String message) {
@@ -317,7 +349,6 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onError(String error) {
                         Log.e(TAG, "Error clearing local data: " + error);
-                        // Still proceed with logout even if local cleanup fails
                         completeLogout();
                     }
                 });
@@ -327,7 +358,6 @@ public class MainActivity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.e(TAG, "Error during logout", e);
-            // Force logout even if there's an error
             completeLogout();
         }
     }
@@ -341,27 +371,43 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void navigateToTaskList() {
+        try {
+            loadFragment(new TaskListFragment());
+            setSelectedNavigationItem(binding.navTasks);
+        } catch (Exception e) {
+            Log.e(TAG, "Error navigating to task list", e);
+        }
+    }
 
+    public void navigateToTaskDetail(long taskId) {
+        try {
+            TaskDetailFragment fragment = TaskDetailFragment.newInstance(taskId);
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.fragment_container, fragment)
+                    .addToBackStack(null)
+                    .commit();
+        } catch (Exception e) {
+            Log.e(TAG, "Error navigating to task detail", e);
+        }
+    }
 
     private void completeLogout() {
         try {
-            // Sign out from Firebase
             if (mAuth != null) {
                 mAuth.signOut();
             }
 
-            // Clear user data from preferences
             preferencesManager.clearUserData();
 
-            // Show success message
             Toast.makeText(this, Constants.SUCCESS_LOGOUT, Toast.LENGTH_SHORT).show();
 
-            // Redirect to login
             redirectToLogin();
 
         } catch (Exception e) {
             Log.e(TAG, "Error completing logout", e);
-            redirectToLogin(); // Force redirect even if there's an error
+            redirectToLogin();
         }
     }
 
@@ -374,7 +420,6 @@ public class MainActivity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.e(TAG, "Error redirecting to login", e);
-            // Force close app if we can't redirect
             finishAffinity();
         }
     }
@@ -383,17 +428,15 @@ public class MainActivity extends AppCompatActivity {
         try {
             Toast.makeText(this, "Kritična greška u aplikaciji. Aplikacija će se zatvoriti.", Toast.LENGTH_LONG).show();
 
-            // Try to logout user
             if (preferencesManager != null) {
                 preferencesManager.clearUserData();
             }
 
-            // Redirect to login or close app
             redirectToLogin();
 
         } catch (Exception ex) {
             Log.e(TAG, "Error handling critical error", ex);
-            finishAffinity(); // Force close app
+            finishAffinity();
         }
     }
 
@@ -402,10 +445,16 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
 
         try {
-            // Check if user is still authenticated
             if (!isUserLoggedIn()) {
                 Log.d(TAG, "User not authenticated in onResume, redirecting to login");
                 redirectToLogin();
+                return;
+            }
+
+            if (taskScheduler != null) {
+                taskScheduler.startScheduler();
+                taskScheduler.runImmediateCheck();
+                Log.d(TAG, "Task scheduler restarted and immediate check performed");
             }
 
         } catch (Exception e) {
@@ -413,14 +462,41 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        try {
+            Log.d(TAG, "onPause - keeping task scheduler running in background");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onPause", e);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            if (taskScheduler != null && isFinishing()) {
+                taskScheduler.stopScheduler();
+                Log.d(TAG, "Task scheduler stopped - activity finishing");
+            }
+
+            if (binding != null) {
+                binding = null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onDestroy", e);
+        }
+    }
+
     private void setSelectedNavigationItem(LinearLayout selectedItem) {
         try {
-            // Reset previous selection
             if (currentSelectedItem != null) {
                 setNavigationItemStyle(currentSelectedItem, defaultColor);
             }
 
-            // Set new selection
             currentSelectedItem = selectedItem;
             setNavigationItemStyle(selectedItem, currentSelectedColor);
 
@@ -448,7 +524,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Fragment createPlaceholderFragment(String title) {
-        // Create a simple placeholder fragment for features not yet implemented
         return new Fragment() {
             @Override
             public android.view.View onCreateView(android.view.LayoutInflater inflater,
@@ -481,17 +556,5 @@ public class MainActivity extends AppCompatActivity {
                 return layout;
             }
         };
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        try {
-            if (binding != null) {
-                binding = null;
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error in onDestroy", e);
-        }
     }
 }

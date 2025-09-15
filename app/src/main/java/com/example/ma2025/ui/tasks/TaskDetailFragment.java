@@ -436,13 +436,10 @@ public class TaskDetailFragment extends Fragment {
                 break;
 
             case TaskEntity.STATUS_COMPLETED:
-                // Završeni zadaci se ne mogu menjati ili brisati
                 break;
 
             case TaskEntity.STATUS_FAILED:
             case TaskEntity.STATUS_CANCELED:
-                // Neurađeni i otkazani zadaci mogu samo da se brišu
-                btnDelete.setVisibility(View.VISIBLE);
                 break;
         }
     }

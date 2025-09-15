@@ -103,7 +103,6 @@ public class TaskListFragment extends Fragment implements TaskAdapter.OnTaskActi
             tabLayout.addTab(tabLayout.newTab().setText("Otkazani"));
         }
 
-        // Listener postavi samo jednom
         tabLayout.clearOnTabSelectedListeners();
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
@@ -135,7 +134,6 @@ public class TaskListFragment extends Fragment implements TaskAdapter.OnTaskActi
             public void onTabReselected(TabLayout.Tab tab) {}
         });
 
-        // automatski selektuj prvi tab ("Aktivni")
         if (tabLayout.getTabCount() > 0) {
             tabLayout.selectTab(tabLayout.getTabAt(0));
         }
@@ -157,8 +155,10 @@ public class TaskListFragment extends Fragment implements TaskAdapter.OnTaskActi
         if (userId != null) {
             viewModel.getAllTasks(userId).observe(getViewLifecycleOwner(), tasks -> {
                 if (tasks != null) {
-                    this.allTasks = tasks;
-                    Log.d("TaskListFragment", "Loaded " + tasks.size() + " tasks from database");
+                    // Filtriraj da prikaže samo trenutne i buduće zadatke
+                    List<TaskEntity> currentAndFutureTasks = filterCurrentAndFutureTasks(tasks);
+                    this.allTasks = currentAndFutureTasks;
+                    Log.d("TaskListFragment", "Loaded " + currentAndFutureTasks.size() + " current/future tasks from " + tasks.size() + " total");
                     filterTasks();
                 } else {
                     Log.d("TaskListFragment", "No tasks loaded");
@@ -169,7 +169,7 @@ public class TaskListFragment extends Fragment implements TaskAdapter.OnTaskActi
         viewModel.getTaskCompletionResult().observe(getViewLifecycleOwner(), result -> {
             if (result != null) {
                 if (result.isSuccess()) {
-                    Toast.makeText(requireContext(), result.getMessage(), Toast.LENGTH_SHORT).show(); // KORISTITE result.getMessage()
+                    Toast.makeText(requireContext(), result.getMessage(), Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(requireContext(), "Greška: " + result.getErrorMessage(), Toast.LENGTH_SHORT).show();
                 }
@@ -198,6 +198,32 @@ public class TaskListFragment extends Fragment implements TaskAdapter.OnTaskActi
         }
 
         taskAdapter.updateTasks(filteredTasks);
+    }
+
+    private List<TaskEntity> filterCurrentAndFutureTasks(List<TaskEntity> allTasks) {
+        List<TaskEntity> currentAndFuture = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        long startOfToday = now - (now % (24 * 60 * 60 * 1000));
+
+        for (TaskEntity task : allTasks) {
+            boolean includeTask = false;
+
+            if (task.dueTime == null) {
+                includeTask = true;
+            }
+            else if (task.dueTime >= startOfToday) {
+                includeTask = true;
+            }
+            else if (task.status == TaskEntity.STATUS_COMPLETED && task.updatedAt >= startOfToday) {
+                includeTask = true;
+            }
+
+            if (includeTask) {
+                currentAndFuture.add(task);
+            }
+        }
+
+        return currentAndFuture;
     }
 
     @Override
@@ -257,10 +283,8 @@ public class TaskListFragment extends Fragment implements TaskAdapter.OnTaskActi
     @Override
     public void onTaskDelete(TaskEntity task) {
         if (task.isRepeating) {
-            // Prikaži dialog za potvrdu
             showDeleteRecurringTaskDialog(task);
         } else {
-            // Obični zadatak - obriši normalno
             viewModel.deleteTask(task);
             Toast.makeText(requireContext(), "Zadatak obrisan", Toast.LENGTH_SHORT).show();
         }

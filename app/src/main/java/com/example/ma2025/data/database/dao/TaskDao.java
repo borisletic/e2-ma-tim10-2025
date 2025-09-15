@@ -141,6 +141,10 @@ public interface TaskDao {
                                               String description, int difficulty,
                                               int importance);
 
+    @Query("SELECT * FROM tasks WHERE user_id = :userId AND status = " + TaskEntity.STATUS_ACTIVE +
+            " AND due_time IS NOT NULL AND due_time < :expirationThreshold")
+    List<TaskEntity> getExpiredActiveTasks(String userId, long expirationThreshold);
+
     // Inner classes for query results
     public static class DifficultyCount {
         public int difficulty;
