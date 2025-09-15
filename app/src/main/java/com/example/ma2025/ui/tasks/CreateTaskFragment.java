@@ -161,7 +161,7 @@ public class CreateTaskFragment extends Fragment {
         if (isEditMode) {
             btnCreateTask.setText("Sačuvaj izmene");
         } else {
-            btnCreateTask.setText("Kreiraj zadatak");
+            btnCreateTask.setText("Kreiraj");
             // Initially hide repeating options for new tasks
             llRepeatingOptions.setVisibility(View.GONE);
         }

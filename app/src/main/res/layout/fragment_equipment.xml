@@ -72,6 +72,22 @@
 
     </LinearLayout>
 
+    <!-- Finish Equipment Button (for Boss Battle) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_finish_equipment"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:layout_marginBottom="16dp"
+        android:text="Završi pripremu za borbu"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:backgroundTint="@color/success_color"
+        android:textColor="@android:color/white"
+        android:visibility="gone"
+        app:iconGravity="textStart"
+        app:iconPadding="8dp" />
+
     <!-- Content Container -->
     <FrameLayout
         android:layout_width="match_parent"

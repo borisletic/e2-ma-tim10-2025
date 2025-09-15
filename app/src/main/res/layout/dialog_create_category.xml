@@ -71,21 +71,26 @@
                 android:orientation="horizontal"
                 android:gravity="end">
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_cancel"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
                     android:text="Otkaži"
                     android:textColor="@color/text_secondary"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_marginEnd="8dp" />
+                    app:strokeColor="@color/text_secondary"
+                    app:cornerRadius="4dp" />
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_save"
+                    style="@style/Widget.MaterialComponents.Button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Sačuvaj"
-                    android:backgroundTint="@color/primary_color" />
+                    android:textColor="@android:color/white"
+                    android:backgroundTint="@color/primary_color"
+                    app:cornerRadius="4dp" />
 
             </LinearLayout>
 

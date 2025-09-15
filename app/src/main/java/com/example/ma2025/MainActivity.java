@@ -47,6 +47,9 @@ public class MainActivity extends AppCompatActivity {
     private int currentSelectedColor;
     private int defaultColor;
 
+    private Fragment currentFragment;
+    private BossFragment bossFragmentInstance;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -97,6 +100,8 @@ public class MainActivity extends AppCompatActivity {
             handleCriticalError(e);
         }
     }
+
+    // ========== EXISTING METHODS ==========
 
     private void initializeFirebase() {
         try {
@@ -290,15 +295,17 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean loadFragment(Fragment fragment) {
         try {
+            Log.d(TAG, "loadFragment() called with: " + fragment.getClass().getSimpleName()); // ← DODAJ
             if (fragment != null) {
+                currentFragment = fragment;
                 getSupportFragmentManager()
                         .beginTransaction()
                         .replace(R.id.fragment_container, fragment)
                         .commit();
+                Log.d(TAG, "Fragment loaded successfully"); // ← DODAJ
                 return true;
             }
             return false;
-
         } catch (Exception e) {
             Log.e(TAG, "Error loading fragment", e);
             Toast.makeText(this, "Greška pri učitavanju stranice", Toast.LENGTH_SHORT).show();

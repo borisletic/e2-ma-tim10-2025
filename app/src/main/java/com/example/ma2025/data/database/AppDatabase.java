@@ -6,6 +6,9 @@ import androidx.room.Room;
 import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
+
+import com.example.ma2025.data.database.dao.BossDao;
+import com.example.ma2025.data.database.entities.BossEntity;
 import com.example.ma2025.data.database.entities.TaskEntity;
 import com.example.ma2025.data.database.entities.CategoryEntity;
 import com.example.ma2025.data.database.entities.TaskCompletionEntity;
@@ -23,9 +26,10 @@ import com.example.ma2025.data.database.dao.UserProgressDao;
                 CategoryEntity.class,
                 TaskCompletionEntity.class,
                 DailyStatsEntity.class,
-                UserProgressEntity.class
+                UserProgressEntity.class,
+                BossEntity.class
         },
-        version = 2,
+        version = 3,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -39,6 +43,7 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract TaskCompletionDao taskCompletionDao();
     public abstract DailyStatsDao dailyStatsDao();
     public abstract UserProgressDao userProgressDao();
+    public abstract BossDao bossDao();
 
     // Migration for adding parent_task_id field
     static final Migration MIGRATION_1_2 = new Migration(1, 2) {
@@ -48,6 +53,23 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("ALTER TABLE tasks ADD COLUMN parent_task_id INTEGER");
             // Dodaj index za novo polje
             database.execSQL("CREATE INDEX index_tasks_parent_task_id ON tasks(parent_task_id)");
+        }
+    };
+
+    static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            // Kreiranje bosses tabele
+            database.execSQL("CREATE TABLE IF NOT EXISTS bosses (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "user_id TEXT NOT NULL, " +
+                    "level INTEGER NOT NULL, " +
+                    "max_hp INTEGER NOT NULL, " +
+                    "current_hp INTEGER NOT NULL, " +
+                    "is_defeated INTEGER NOT NULL, " +
+                    "coins_reward INTEGER NOT NULL, " +
+                    "created_at INTEGER NOT NULL, " +
+                    "updated_at INTEGER NOT NULL)");
         }
     };
 
@@ -62,7 +84,7 @@ public abstract class AppDatabase extends RoomDatabase {
                                     DATABASE_NAME
                             )
                             .addCallback(roomCallback)
-                            .addMigrations(MIGRATION_1_2)
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                             .fallbackToDestructiveMigration() // For development only
                             .build();
                 }
