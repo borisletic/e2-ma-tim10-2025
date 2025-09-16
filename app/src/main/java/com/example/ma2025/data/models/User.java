@@ -12,6 +12,7 @@ public class User {
     private String username;
     private String avatar;
     private int level;
+    private long lastLevelUpTime;
     private String title;
     private int xp;
     private int pp;
@@ -31,6 +32,7 @@ public class User {
         // Initialize with safe default values
         this.badges = new ArrayList<>();
         this.level = 0;
+        this.lastLevelUpTime = System.currentTimeMillis();
         this.title = "Novajlija"; // Default title
         this.xp = 0;
         this.pp = 0;
@@ -79,6 +81,10 @@ public class User {
 
     public int getLevel() { return level; }
 
+    public long getLastLevelUpTime() {
+        return lastLevelUpTime;
+    }
+
     public String getTitle() {
         return title != null ? title : "Novajlija";
     }
@@ -120,6 +126,9 @@ public class User {
 
     public void setLevel(int level) {
         this.level = Math.max(0, level); // Ensure non-negative
+    }
+    public void setLastLevelUpTime(long lastLevelUpTime) {
+        this.lastLevelUpTime = lastLevelUpTime > 0 ? lastLevelUpTime : System.currentTimeMillis();
     }
 
     public void setTitle(String title) {
@@ -234,6 +243,7 @@ public class User {
         try {
             if (canLevelUp()) {
                 level++;
+                this.lastLevelUpTime = System.currentTimeMillis();
                 updateTitle();
                 addPpForLevel();
             }
@@ -241,6 +251,13 @@ public class User {
             // Log error but don't crash
             android.util.Log.e("User", "Error during level up", e);
         }
+    }
+
+    public void levelUp(int newLevel, int ppGained) {
+        this.level = newLevel;
+        this.pp += ppGained;
+        this.lastLevelUpTime = System.currentTimeMillis();
+        updateTitle();
     }
 
     private void updateTitle() {
@@ -308,6 +325,7 @@ public class User {
         copy.setUsername(this.getUsername());
         copy.setAvatar(this.getAvatar());
         copy.setLevel(this.getLevel());
+        copy.setLastLevelUpTime(this.getLastLevelUpTime());
         copy.setTitle(this.getTitle());
         copy.setXp(this.getXp());
         copy.setPp(this.getPp());

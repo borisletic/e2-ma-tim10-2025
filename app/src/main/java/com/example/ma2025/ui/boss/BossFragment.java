@@ -10,6 +10,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -18,8 +20,13 @@ import androidx.lifecycle.ViewModelProvider;
 import com.example.ma2025.MainActivity;
 import com.example.ma2025.R;
 import com.example.ma2025.data.models.Equipment;
+import com.example.ma2025.data.models.User;
 import com.example.ma2025.utils.BossAnimationManager;
+import com.example.ma2025.utils.Constants;
+import com.example.ma2025.utils.GameLogicUtils;
 import com.example.ma2025.viewmodels.BossViewModel;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.List;
 
@@ -27,15 +34,24 @@ public class BossFragment extends Fragment {
 
     private static final String TAG = "BossFragment";
 
-    // UI Components
-    private TextView tvBasePp;
-    private TextView tvEquipmentBonus;
-    private TextView tvTotalPp;
-    private ProgressBar pbTotalPp, pbBossHp, pbBossHpBattle, pbPlayerPpBattle;
-    private TextView tvBossLevel, tvBossHp, tvBossHpLabel, tvPlayerPpLabel, tvAttacksRemaining, tvSuccessChance, tvBattleMessage, tvNoEquipment;
-    private Button btnRefresh, btnPrepareForBattle, btnAttack;
+    // Boss battle UI components
     private ImageView ivBossSprite;
+    private TextView tvBossTitle, tvBossLevel, tvBossHp;
+    private ProgressBar pbBossHp;
+
+    // Player stats UI components
+    private TextView tvPlayerTitle, tvPlayerPp, tvBasePp, tvEquipmentBonus;
+    private ProgressBar pbPlayerPp;
+
+    // Equipment display
     private LinearLayout llActiveEquipment;
+    private TextView tvEquipmentTitle, tvNoEquipment;
+
+    // Battle controls
+    private Button btnPrepareForBattle, btnAttack;
+    private TextView tvAttacksRemaining, tvBattleMessage, tvAttackSuccessRate;
+
+    // Animation and state
     private BossAnimationManager animationManager;
     private int attacksRemaining = 5;
     private final int maxAttacks = 5;
@@ -59,29 +75,35 @@ public class BossFragment extends Fragment {
         setupClickListeners();
 
         bossViewModel.refreshAllPpData();
+        setupInitialBattleState();
     }
 
     private void initViews(View view) {
-        tvBasePp = view.findViewById(R.id.tv_base_pp);
-        tvEquipmentBonus = view.findViewById(R.id.tv_equipment_bonus);
-        tvTotalPp = view.findViewById(R.id.tv_total_pp);
-        pbTotalPp = view.findViewById(R.id.pb_total_pp);
-        btnRefresh = view.findViewById(R.id.btn_refresh);
+        // Boss section
+        ivBossSprite = view.findViewById(R.id.iv_boss_sprite);
+        tvBossTitle = view.findViewById(R.id.tv_boss_title);
         tvBossLevel = view.findViewById(R.id.tv_boss_level);
         tvBossHp = view.findViewById(R.id.tv_boss_hp);
         pbBossHp = view.findViewById(R.id.pb_boss_hp);
-        btnPrepareForBattle = view.findViewById(R.id.btn_prepare_battle);
-        ivBossSprite = view.findViewById(R.id.iv_boss_sprite);
-        tvBossHpLabel = view.findViewById(R.id.tv_boss_hp_label);
-        pbBossHpBattle = view.findViewById(R.id.pb_boss_hp_battle);
-        tvPlayerPpLabel = view.findViewById(R.id.tv_player_pp_label);
-        pbPlayerPpBattle = view.findViewById(R.id.pb_player_pp_battle);
-        tvAttacksRemaining = view.findViewById(R.id.tv_attacks_remaining);
-        tvSuccessChance = view.findViewById(R.id.tv_success_chance);
-        btnAttack = view.findViewById(R.id.btn_attack);
-        tvBattleMessage = view.findViewById(R.id.tv_battle_message);
+
+        // Player section
+        tvPlayerTitle = view.findViewById(R.id.tv_player_title);
+        tvPlayerPp = view.findViewById(R.id.tv_player_pp);
+        tvBasePp = view.findViewById(R.id.tv_base_pp);
+        tvEquipmentBonus = view.findViewById(R.id.tv_equipment_bonus);
+        pbPlayerPp = view.findViewById(R.id.pb_player_pp);
+
+        // Equipment section
+        tvEquipmentTitle = view.findViewById(R.id.tv_equipment_title);
         llActiveEquipment = view.findViewById(R.id.ll_active_equipment);
         tvNoEquipment = view.findViewById(R.id.tv_no_equipment);
+
+        // Battle controls
+        btnPrepareForBattle = view.findViewById(R.id.btn_prepare_battle);
+        btnAttack = view.findViewById(R.id.btn_attack);
+        tvAttacksRemaining = view.findViewById(R.id.tv_attacks_remaining);
+        tvBattleMessage = view.findViewById(R.id.tv_battle_message);
+        tvAttackSuccessRate = view.findViewById(R.id.tv_attack_success_rate);
     }
 
     private void setupViewModel() {
@@ -90,93 +112,202 @@ public class BossFragment extends Fragment {
     }
 
     private void setupAnimation() {
-        if (getContext() != null) {
+        if (getContext() != null && ivBossSprite != null) {
             animationManager = new BossAnimationManager(getContext(), ivBossSprite);
         }
     }
 
-    private void updateSuccessChance() {
-        Integer totalPp = bossViewModel.getTotalPp().getValue();
-        Integer bossLevel = bossViewModel.getUserLevel().getValue();
+    private void setupInitialBattleState() {
+        tvBattleMessage.setText("Spreman za borbu!");
+        tvAttacksRemaining.setText("Napadi: " + attacksRemaining + " od " + maxAttacks);
 
-        if (totalPp != null && bossLevel != null) {
-            double baseChance = (double) totalPp / (bossLevel * 50 + 100);
-            int percentage = (int) (Math.min(0.95, Math.max(0.05, baseChance)) * 100);
-            tvSuccessChance.setText("Šansa: " + percentage + "%");
-        } else {
-            tvSuccessChance.setText("Šansa: --%");
-        }
+        tvBossTitle.setText("BOSS");
+        tvPlayerTitle.setText("TVOJA SNAGA");
+        tvEquipmentTitle.setText("AKTIVNA OPREMA");
+
+        updateAttackSuccessRate();
     }
 
     private void setupObservers() {
+        bossViewModel.getUserLevel().observe(getViewLifecycleOwner(), level -> {
+            if (level != null) {
+                updateBossDisplay(level);
+            }
+        });
+
+        bossViewModel.getBossCurrentHp().observe(getViewLifecycleOwner(), currentHp -> {
+            if (currentHp != null && bossViewModel.getBossMaxHp().getValue() != null) {
+                updateBossHpDisplay(currentHp, bossViewModel.getBossMaxHp().getValue());
+            }
+        });
+
         bossViewModel.getUserBasePp().observe(getViewLifecycleOwner(), basePp -> {
             if (basePp != null) {
                 tvBasePp.setText("Osnovna PP: " + basePp);
-                Log.d(TAG, "Base PP updated: " + basePp);
+                updateTotalPpDisplay();
             }
         });
 
         bossViewModel.getEquipmentPpBonus().observe(getViewLifecycleOwner(), bonus -> {
             if (bonus != null) {
-                if (bonus > 0) {
-                    tvEquipmentBonus.setText("Bonus iz opreme: +" + bonus + " PP");
-                    tvEquipmentBonus.setVisibility(View.VISIBLE);
-                } else {
-                    tvEquipmentBonus.setText("Nema bonus iz opreme");
-                    tvEquipmentBonus.setVisibility(View.VISIBLE);
+                updateEquipmentBonusDisplay(bonus);
+                updateTotalPpDisplay();
+            }
+        });
+
+        bossViewModel.getTotalPp().observe(getViewLifecycleOwner(), totalPp -> {
+            if (totalPp != null) {
+                updatePlayerPpDisplay(totalPp);
+            }
+        });
+
+        bossViewModel.getActiveEquipment().observe(getViewLifecycleOwner(), this::updateEquipmentDisplay);
+    }
+
+    private void updateBossDisplay(int userLevel) {
+        tvBossLevel.setText("Nivo " + userLevel + " Boss");
+
+        String bossName = getBossName(userLevel);
+        tvBossTitle.setText(bossName);
+        updateRewardsDisplay(userLevel);
+
+
+        Log.d(TAG, "Boss display updated for level: " + userLevel);
+    }
+
+    private String getBossName(int level) {
+        switch (level) {
+            case 0:
+            case 1: return "POČETNI ČUVAR";
+            case 2: return "KAMENI GOLEM";
+            case 3: return "VATRENI DEMON";
+            case 4: return "LEDENI ZMAJ";
+            case 5: return "MRAČNI VLADAR";
+            default: return "LEGENDERNI BOSS (" + level + ")";
+        }
+    }
+
+    private void updateBossHpDisplay(int currentHp, int maxHp) {
+        tvBossHp.setText(currentHp + " / " + maxHp + " HP");
+
+        int progress = maxHp > 0 ? (int) ((currentHp * 100.0) / maxHp) : 0;
+        pbBossHp.setProgress(progress);
+
+    }
+
+    private void updateRewardsDisplay(int userLevel) {
+        TextView tvCoinsReward = requireView().findViewById(R.id.tv_coins_reward);
+        TextView tvEquipmentChance = requireView().findViewById(R.id.tv_equipment_chance);
+
+        int coinsReward = calculateCoinsReward(userLevel);
+        tvCoinsReward.setText(String.valueOf(coinsReward));
+
+        tvEquipmentChance.setText("20% šanse");
+    }
+
+    private int calculateCoinsReward(int level) {
+        if (level <= 1) {
+            return 200;
+        }
+
+        int previousReward = calculateCoinsReward(level - 1);
+        return (int) (previousReward * 1.2);
+    }
+
+    private void updateEquipmentBonusDisplay(int bonus) {
+        if (bonus > 0) {
+            tvEquipmentBonus.setText("+ " + bonus + " PP (oprema)");
+            tvEquipmentBonus.setVisibility(View.VISIBLE);
+        } else {
+            tvEquipmentBonus.setText("Nema bonus");
+            tvEquipmentBonus.setVisibility(View.VISIBLE);
+            tvEquipmentBonus.setTextColor(getResources().getColor(android.R.color.darker_gray));
+        }
+    }
+
+    private void updateTotalPpDisplay() {
+        Integer basePp = bossViewModel.getUserBasePp().getValue();
+        Integer bonusPp = bossViewModel.getEquipmentPpBonus().getValue();
+
+        if (basePp != null && bonusPp != null) {
+            int total = basePp + bonusPp;
+            tvPlayerPp.setText("UKUPNO: " + total + " PP");
+        }
+    }
+
+    private void updatePlayerPpDisplay(int totalPp) {
+        int progress = Math.min(100, (totalPp * 100) / 500);
+        pbPlayerPp.setProgress(progress);
+
+        Log.d(TAG, "Player PP display updated: " + totalPp);
+    }
+
+    private void updateEquipmentDisplay(List<Equipment> equipmentList) {
+        llActiveEquipment.removeAllViews();
+
+        if (equipmentList != null && !equipmentList.isEmpty()) {
+            tvNoEquipment.setVisibility(View.GONE);
+
+            for (Equipment equipment : equipmentList) {
+                View equipmentView = createEquipmentView(equipment);
+                llActiveEquipment.addView(equipmentView);
+            }
+
+        } else {
+            tvNoEquipment.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private View createEquipmentView(Equipment equipment) {
+        View equipmentView = LayoutInflater.from(getContext()).inflate(R.layout.item_boss_equipment, llActiveEquipment, false);
+
+        ImageView icon = equipmentView.findViewById(R.id.iv_equipment_icon);
+        TextView name = equipmentView.findViewById(R.id.tv_equipment_name);
+        TextView effect = equipmentView.findViewById(R.id.tv_equipment_effect);
+
+        icon.setImageResource(getEquipmentIcon(equipment));
+        name.setText(equipment.getName());
+        effect.setText(getEquipmentEffectText(equipment));
+
+        return equipmentView;
+    }
+
+    private int getEquipmentIcon(Equipment equipment) {
+        int iconRes = R.drawable.ic_equipment;
+
+        switch (equipment.getType()) {
+            case Constants.EQUIPMENT_TYPE_POTION:
+                iconRes = equipment.isPermanent() ?
+                        R.drawable.ic_potion_permanent : R.drawable.ic_potion_temporary;
+                break;
+            case Constants.EQUIPMENT_TYPE_CLOTHING:
+                switch (equipment.getEffectType()) {
+                    case Constants.EFFECT_PP_BOOST:
+                        iconRes = R.drawable.ic_gloves;
+                        break;
+                    case Constants.EFFECT_ATTACK_BOOST:
+                        iconRes = R.drawable.ic_shield;
+                        break;
+                    case "extra_attack":
+                        iconRes = R.drawable.ic_boots;
+                        break;
                 }
-                Log.d(TAG, "Equipment bonus updated: " + bonus);
-            }
-        });
+                break;
+            case Constants.EQUIPMENT_TYPE_WEAPON:
+                iconRes = equipment.getEffectType().equals(Constants.EFFECT_PP_BOOST) ?
+                        R.drawable.ic_sword : R.drawable.ic_bow;
+                break;
+        }
 
-        bossViewModel.getTotalPp().observe(getViewLifecycleOwner(), totalPp -> {
-            if (totalPp != null) {
-                tvTotalPp.setText("Ukupna PP: " + totalPp);
-                int progress = Math.min(100, Math.max(0, (totalPp * 100) / 200));
-                pbTotalPp.setProgress(progress);
+        return iconRes;
+    }
 
-                Log.d(TAG, "Total PP updated: " + totalPp);
-                updateSuccessChance();
-            }
-        });
-
-        bossViewModel.getUserLevel().observe(getViewLifecycleOwner(), level -> {
-            if (level != null) {
-                tvBossLevel.setText("Boss Nivo: " + level);
-            }
-        });
-
-        bossViewModel.getBossCurrentHp().observe(getViewLifecycleOwner(), currentHp -> {
-            if (currentHp != null && bossViewModel.getBossMaxHp().getValue() != null) {
-                int maxHp = bossViewModel.getBossMaxHp().getValue();
-                tvBossHp.setText("Boss HP: " + currentHp + "/" + maxHp);
-
-                int progress = (int) ((currentHp * 100.0) / maxHp);
-                pbBossHp.setProgress(progress);
-            }
-        });
-
-        bossViewModel.getBossCurrentHp().observe(getViewLifecycleOwner(), currentHp -> {
-            if (currentHp != null && bossViewModel.getBossMaxHp().getValue() != null) {
-                int maxHp = bossViewModel.getBossMaxHp().getValue();
-                tvBossHpLabel.setText("Boss HP: " + currentHp + "/" + maxHp);
-
-                int progress = (int) ((currentHp * 100.0) / maxHp);
-                pbBossHpBattle.setProgress(progress);
-            }
-        });
-
-        bossViewModel.getTotalPp().observe(getViewLifecycleOwner(), totalPp -> {
-            if (totalPp != null) {
-                tvPlayerPpLabel.setText("Tvoja PP: " + totalPp);
-                pbPlayerPpBattle.setProgress(Math.min(100, totalPp));
-            }
-        });
-
-        bossViewModel.getActiveEquipment().observe(getViewLifecycleOwner(), equipmentList -> {
-            Log.d(TAG, "Received equipment list with " + (equipmentList != null ? equipmentList.size() : "null") + " items");
-            updateActiveEquipmentDisplay(equipmentList);
-        });
+    private String getEquipmentEffectText(Equipment equipment) {
+        if ("pp_boost".equals(equipment.getEffectType())) {
+            int bonus = (int)(equipment.getEffectValue() * 100);
+            return "+" + bonus + " PP";
+        }
+        return equipment.getEffectType();
     }
 
     private void setupClickListeners() {
@@ -187,67 +318,143 @@ public class BossFragment extends Fragment {
             }
         });
 
-        btnAttack.setOnClickListener(v -> {
-            if (attacksRemaining <= 0) {
-                tvBattleMessage.setText("Nemaš više napada za danas!");
-                btnAttack.setAlpha(0.5f);
-                return;
-            }
-
-            if (animationManager != null) {
-                animationManager.playHitAnimation();
-                animationManager.playShakeEffect();
-            }
-
-            Integer currentHp = bossViewModel.getBossCurrentHp().getValue();
-            if (currentHp != null && currentHp > 0) {
-                int damage = 20; // Test damage
-                int newHp = Math.max(0, currentHp - damage);
-                bossViewModel.setBossCurrentHp(newHp);
-
-                if (newHp <= 0) {
-                    tvBattleMessage.setText("POBEDA! Porazio si bosa!");
-                    if (animationManager != null) {
-                        animationManager.playDeathAnimation();
-                    }
-                } else {
-                    tvBattleMessage.setText("Pogodak! Naneo si " + damage + " štete!");
-                }
-            } else {
-                tvBattleMessage.setText("Boss je već poražen!");
-            }
-            attacksRemaining--;
-            tvAttacksRemaining.setText("Napadi: " + attacksRemaining + " od " + maxAttacks);
-
-            if (attacksRemaining <= 0) {
-                btnAttack.setEnabled(false);
-            }
-        });
+        btnAttack.setOnClickListener(v -> performAttack());
     }
 
-    private void updateActiveEquipmentDisplay(List<Equipment> activeEquipment) {
-        if (activeEquipment != null && !activeEquipment.isEmpty()) {
-            tvNoEquipment.setVisibility(View.GONE);
-            llActiveEquipment.removeAllViews();
-
-            // Jedan TextView sa svim imenima
-            StringBuilder equipNames = new StringBuilder();
-            for (int i = 0; i < activeEquipment.size(); i++) {
-                equipNames.append(activeEquipment.get(i).getName());
-                if (i < activeEquipment.size() - 1) {
-                    equipNames.append(", ");
-                }
-            }
-
-            TextView allEquipment = new TextView(getContext());
-            allEquipment.setText(equipNames.toString());
-            allEquipment.setTextSize(12);
-            allEquipment.setTextColor(getResources().getColor(R.color.text_secondary));
-            llActiveEquipment.addView(allEquipment);
-
-        } else {
-            tvNoEquipment.setVisibility(View.VISIBLE);
+    private void performAttack() {
+        if (attacksRemaining <= 0) {
+            tvBattleMessage.setText("Nemaš više napada za danas!");
+            btnAttack.setEnabled(false);
+            return;
         }
+
+        Integer totalPp = bossViewModel.getTotalPp().getValue();
+        Integer currentHp = bossViewModel.getBossCurrentHp().getValue();
+
+        if (totalPp == null || currentHp == null || currentHp <= 0) {
+            tvBattleMessage.setText("Boss je već poražen!");
+            return;
+        }
+
+        int damage = totalPp;
+
+        if (animationManager != null) {
+            animationManager.playHitAnimation();
+            animationManager.playShakeEffect();
+        }
+
+        int newHp = Math.max(0, currentHp - damage);
+        bossViewModel.setBossCurrentHp(newHp);
+
+        attacksRemaining--;
+        tvAttacksRemaining.setText("Napadi: " + attacksRemaining + " od " + maxAttacks);
+
+        if (newHp <= 0) {
+            tvBattleMessage.setText("POBEDA! Porazio si " + getBossName(bossViewModel.getUserLevel().getValue()) + "!");
+            btnAttack.setEnabled(false);
+
+            if (animationManager != null) {
+                animationManager.playDeathAnimation();
+            }
+            handleBossDefeat();
+        } else {
+            tvBattleMessage.setText("Pogodak! Naneo si " + damage + " štete!");
+        }
+
+        if (attacksRemaining <= 0) {
+            btnAttack.setEnabled(false);
+            btnAttack.setAlpha(0.5f);
+        }
+    }
+
+    private void updateAttackSuccessRate() {
+        // Placeholder - treba implementirati logiku na osnovu uspešnosti zadataka
+        // Za sada hardkodovano na 68%
+        int successRate = 68; // TODO: Izračunati na osnovu rešenih zadataka
+        tvAttackSuccessRate.setText("Šansa napada: " + successRate + "%");
+    }
+
+    private void handleBossDefeat() {
+        Integer userLevel = bossViewModel.getUserLevel().getValue();
+        if (userLevel == null) return;
+
+        int coinsReward = calculateCoinsReward(userLevel);
+
+        Equipment rewardEquipment = GameLogicUtils.generateRandomEquipmentReward(userLevel);
+
+        String rewardMessage = "Dobio si " + coinsReward + " coins!";
+        if (rewardEquipment != null) {
+            String equipmentName = rewardEquipment.getName();
+            rewardMessage += " + " + equipmentName + "!";
+        }
+
+        tvBattleMessage.setText(rewardMessage);
+
+        updateUserCoins(coinsReward);
+
+        if (rewardEquipment != null) {
+            saveEquipmentReward(rewardEquipment);
+        }
+    }
+
+    private void updateUserCoins(int coinsToAdd) {
+        String userId = FirebaseAuth.getInstance().getCurrentUser() != null ?
+                FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
+        if (userId == null) return;
+
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        db.collection(Constants.COLLECTION_USERS)
+                .document(userId)
+                .get()
+                .addOnSuccessListener(document -> {
+                    if (document.exists()) {
+                        User user = document.toObject(User.class);
+                        if (user != null) {
+                            int currentCoins = user.getCoins();
+                            int newCoins = currentCoins + coinsToAdd;
+
+                            db.collection(Constants.COLLECTION_USERS)
+                                    .document(userId)
+                                    .update("coins", newCoins)
+                                    .addOnSuccessListener(aVoid -> {
+                                        Log.d(TAG, "User coins updated: " + currentCoins + " -> " + newCoins);
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e(TAG, "Error updating coins", e);
+                                    });
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading user for coins update", e);
+                });
+    }
+
+    private void saveEquipmentReward(Equipment equipment) {
+        String userId = FirebaseAuth.getInstance().getCurrentUser() != null ?
+                FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
+        if (userId == null || equipment == null) return;
+
+        equipment.setUserId(userId);
+        equipment.setId(null);
+
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection(Constants.COLLECTION_EQUIPMENT)
+                .add(equipment)
+                .addOnSuccessListener(documentReference -> {
+                    equipment.setId(documentReference.getId());
+                    Log.d(TAG, "Reward equipment saved: " + equipment.getName());
+
+                    if (getContext() != null) {
+                        Toast.makeText(getContext(),
+                                "Bonus nagrada! Dobili ste: " + equipment.getName(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error saving reward equipment", e);
+                });
     }
 
     @Override

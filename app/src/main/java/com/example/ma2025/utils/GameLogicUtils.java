@@ -1,5 +1,9 @@
 package com.example.ma2025.utils;
 
+import com.example.ma2025.data.models.Equipment;
+
+import java.util.Random;
+
 public class GameLogicUtils {
 
     /**
@@ -284,6 +288,75 @@ public class GameLogicUtils {
     public static int calculateActiveDays(long registrationTime) {
         long daysDiff = DateUtils.getDaysDifference(registrationTime, System.currentTimeMillis());
         return (int) Math.max(1, daysDiff); // Minimum 1 dan
+    }
+
+    /**
+     * Generiše nasumičnu opremu nakon pobede nad bosom (20% šanse)
+     */
+    public static Equipment generateRandomEquipmentReward(int playerLevel) {
+        Random random = new Random();
+
+        // 20% šanse za opremu
+        if (random.nextFloat() > 0.20f) {
+            return null; // Nema nagrade
+        }
+
+        int bossReward = calculateBossReward(playerLevel);
+
+        // 95% šanse za odeću, 5% šanse za oružje
+        boolean isClothing = random.nextFloat() <= 0.95f;
+
+        if (isClothing) {
+            return generateRandomClothing(bossReward, random);
+        } else {
+            return generateRandomWeapon(bossReward, random);
+        }
+    }
+
+    /**
+     * Generiše nasumičnu odeću
+     */
+    private static Equipment generateRandomClothing(int bossReward, Random random) {
+        String[] clothingNames = {
+                "Rukavice Snage", "Štit Preciznosti", "Čizme Brzine",
+                "Oklop Zaštite", "Kaciga Moći", "Plašt Tame"
+        };
+
+        String[] effects = {
+                Constants.EFFECT_PP_BOOST,
+                Constants.EFFECT_ATTACK_BOOST,
+                "extra_attack"
+        };
+
+        String name = clothingNames[random.nextInt(clothingNames.length)];
+        String effect = effects[random.nextInt(effects.length)];
+        double effectValue = 0.05 + (random.nextDouble() * 0.15); // 5-20% efekat
+        int rarity = 30 + random.nextInt(71); // Rarity 30-100
+
+        Equipment clothing = Equipment.createClothing(name, effect, effectValue, rarity);
+        clothing.setPrice(0); // Besplatno jer je nagrada
+
+        return clothing;
+    }
+
+    /**
+     * Generiše nasumično oružje
+     */
+    private static Equipment generateRandomWeapon(int bossReward, Random random) {
+        String[] weaponNames = {
+                "Mač Svetlosti", "Sekira Groma", "Luk Vetra",
+                "Štap Vatre", "Bodež Senki", "Čekić Zemlje"
+        };
+
+        String name = weaponNames[random.nextInt(weaponNames.length)];
+        double effectValue = 0.10 + (random.nextDouble() * 0.20); // 10-30% efekat
+        int rarity = 50 + random.nextInt(51); // Rarity 50-100
+        boolean isPermanent = random.nextBoolean(); // 50% šanse da bude permanentno
+
+        Equipment weapon = Equipment.createPotion(name, effectValue, rarity, isPermanent);
+        weapon.setPrice(0); // Besplatno jer je nagrada
+
+        return weapon;
     }
 
 }

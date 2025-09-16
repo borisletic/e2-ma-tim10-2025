@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:paddingStart="4dp"
+    android:layout_marginVertical="4dp">
+
+    <ImageView
+        android:id="@+id/iv_equipment_icon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="8dp"
+        android:src="@drawable/ic_equipment"
+        android:contentDescription="Equipment icon" />
+
+    <TextView
+        android:id="@+id/tv_equipment_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_gravity="center_vertical"
+        android:text="Equipment Name"
+        android:textSize="16sp"
+        android:textColor="@color/text_primary"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tv_equipment_effect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:text="+20 PP"
+        android:textSize="14sp"
+        android:textColor="@color/success_color"
+        android:textStyle="bold" />
+
+</LinearLayout>

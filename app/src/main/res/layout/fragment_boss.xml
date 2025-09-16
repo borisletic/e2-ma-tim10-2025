@@ -15,14 +15,14 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Borba sa Bosom - PP Sistem"
+            android:text="Borba sa Bosom"
             android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:layout_marginBottom="24dp"
             android:layout_gravity="center" />
 
-        <!-- Kartica sa PP informacijama -->
+        <!-- BOSS SECTION -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -37,180 +37,33 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
+                <!-- Boss Title -->
                 <TextView
+                    android:id="@+id/tv_boss_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Pregled Snage (PP)"
-                    android:textSize="16sp"
+                    android:text="POČETNI ČUVAR"
+                    android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginBottom="12dp" />
-
-                <!-- Osnovna PP -->
-                <TextView
-                    android:id="@+id/tv_base_pp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Osnovna PP: Učitava se..."
-                    android:textSize="14sp"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginBottom="4dp" />
-
-                <!-- Bonus iz opreme -->
-                <TextView
-                    android:id="@+id/tv_equipment_bonus"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Bonus iz opreme: Učitava se..."
-                    android:textSize="14sp"
-                    android:textColor="@color/success_color"
-                    android:layout_marginBottom="8dp"
-                    android:visibility="visible" />
-
-                <!-- Linija -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="@color/text_secondary"
-                    android:layout_marginVertical="8dp" />
-
-                <!-- Ukupna PP -->
-                <TextView
-                    android:id="@+id/tv_total_pp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Ukupna PP: Učitava se..."
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_color"
-                    android:layout_marginBottom="8dp" />
-
-                <!-- PP Progress Bar -->
-                <ProgressBar
-                    android:id="@+id/pb_total_pp"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:progress="0"
-                    android:max="100"
-                    android:progressTint="@color/primary_color" />
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- Kartica sa Boss informacijama -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="@color/surface_color">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Boss Informacije"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginBottom="12dp" />
+                    android:textColor="@color/error_color"
+                    android:layout_marginBottom="4dp"
+                    android:layout_gravity="center" />
 
                 <!-- Boss Level -->
                 <TextView
                     android:id="@+id/tv_boss_level"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Boss Nivo: Učitava se..."
+                    android:text="Nivo 1 Boss"
                     android:textSize="14sp"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginBottom="4dp" />
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="12dp"
+                    android:layout_gravity="center" />
 
-                <!-- Boss HP -->
-                <TextView
-                    android:id="@+id/tv_boss_hp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Boss HP: Učitava se..."
-                    android:textSize="16sp"
-                    android:textColor="@color/error_color"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
-
-                <!-- Boss HP Progress Bar -->
-                <ProgressBar
-                    android:id="@+id/pb_boss_hp"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:progress="100"
-                    android:max="100"
-                    android:progressTint="@color/error_color" />
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- Dugme za osvežavanje -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_refresh"
-            style="@style/Widget.MaterialComponents.Button"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginBottom="8dp"
-            android:text="Osveži PP Podatke"
-            android:textColor="@android:color/white"
-            android:backgroundTint="@color/primary_color"
-            app:cornerRadius="8dp" />
-
-        <!-- Dugme za pripremu borbe -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_prepare_battle"
-            style="@style/Widget.MaterialComponents.Button"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginBottom="16dp"
-            android:text="Pripremi se za borbu"
-            android:textColor="@android:color/white"
-            android:backgroundTint="@color/success_color"
-            app:cornerRadius="8dp" />
-
-        <!-- Battle UI kartica -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="@color/surface_color">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Arena Borbe"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginBottom="16dp" />
-
-                <!-- Boss vizuelna predstava -->
+                <!-- Boss Visual Area -->
                 <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="150dp"
+                    android:layout_height="120dp"
                     android:layout_marginBottom="16dp"
                     android:background="@drawable/boss_arena_bg">
 
@@ -222,107 +75,118 @@
                         android:src="@drawable/ic_boss_idle"
                         android:contentDescription="Boss sprite" />
 
-                    <!-- Boss HP bar sa label -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentTop="true"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginHorizontal="8dp"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tv_boss_hp_label"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Boss HP: 200/200"
-                            android:textSize="12sp"
-                            android:textColor="@color/error_color"
-                            android:textStyle="bold" />
-
-                        <ProgressBar
-                            android:id="@+id/pb_boss_hp_battle"
-                            android:layout_width="match_parent"
-                            android:layout_height="8dp"
-                            style="?android:attr/progressBarStyleHorizontal"
-                            android:progress="100"
-                            android:max="100"
-                            android:progressTint="@color/error_color" />
-
-                    </LinearLayout>
-
-                    <!-- Player PP bar sa label -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentBottom="true"
-                        android:layout_marginBottom="8dp"
-                        android:layout_marginHorizontal="8dp"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tv_player_pp_label"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Tvoja PP: 25"
-                            android:textSize="12sp"
-                            android:textColor="@color/primary_color"
-                            android:textStyle="bold" />
-
-                        <ProgressBar
-                            android:id="@+id/pb_player_pp_battle"
-                            android:layout_width="match_parent"
-                            android:layout_height="6dp"
-                            style="?android:attr/progressBarStyleHorizontal"
-                            android:progress="25"
-                            android:max="100"
-                            android:progressTint="@color/primary_color" />
-
-                    </LinearLayout>
-
                 </RelativeLayout>
 
-                <!-- Active Equipment prikaz -->
+                <!-- Boss HP -->
+                <TextView
+                    android:id="@+id/tv_boss_hp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="200 / 200 HP"
+                    android:textSize="16sp"
+                    android:textColor="@color/error_color"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"
+                    android:layout_gravity="center" />
+
+                <!-- Boss HP Progress Bar -->
+                <ProgressBar
+                    android:id="@+id/pb_boss_hp"
+                    android:layout_width="match_parent"
+                    android:layout_height="12dp"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:progress="100"
+                    android:max="100"
+                    android:progressTint="@color/error_color"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:id="@+id/tv_attack_success_rate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Šansa napada: 68%"
+                    android:textSize="18sp"
+                    android:textColor="@color/text_primary"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"
+                    android:layout_gravity="center" />
+
+                <!-- Potential Rewards Section -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="POTENCIJALNE NAGRADE"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="12dp">
+                    android:orientation="vertical"
+                    android:padding="10dp"
+                    android:layout_marginBottom="16dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Aktivna oprema: "
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary" />
-
+                    <!-- Coins Reward -->
                     <LinearLayout
-                        android:id="@+id/ll_active_equipment"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="4dp">
 
-                        <!-- Equipment ikone će se dodavati programski -->
                         <TextView
-                            android:id="@+id/tv_no_equipment"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Nema aktivne opreme"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:textStyle="italic" />
+                            android:text="💰 Novčići:"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_coins_reward"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="200"
+                            android:textSize="16sp"
+                            android:textColor="@color/success_color"
+                            android:textStyle="bold"
+                            android:layout_marginLeft="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- Equipment Chance -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="⚔️ Oprema:"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_equipment_chance"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="20% šanse"
+                            android:textSize="16sp"
+                            android:textColor="@color/primary_color"
+                            android:textStyle="bold"
+                            android:layout_marginLeft="8dp" />
 
                     </LinearLayout>
 
                 </LinearLayout>
 
-                <!-- Battle info -->
+                <!-- Battle Stats -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginBottom="12dp">
+                    android:layout_marginBottom="16dp">
 
                     <TextView
                         android:id="@+id/tv_attacks_remaining"
@@ -333,19 +197,9 @@
                         android:textSize="14sp"
                         android:textColor="@color/text_primary" />
 
-                    <TextView
-                        android:id="@+id/tv_success_chance"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Šansa: 67%"
-                        android:textSize="14sp"
-                        android:textColor="@color/success_color"
-                        android:textAlignment="textEnd" />
-
                 </LinearLayout>
 
-                <!-- Attack button -->
+                <!-- Attack Button - MOVED HERE -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_attack"
                     style="@style/Widget.MaterialComponents.Button"
@@ -356,19 +210,161 @@
                     android:textStyle="bold"
                     android:textColor="@android:color/white"
                     android:backgroundTint="@color/error_color"
-                    app:cornerRadius="8dp" />
+                    app:cornerRadius="8dp"
+                    android:layout_marginBottom="12dp" />
 
-                <!-- Battle message -->
+                <!-- Battle Message -->
                 <TextView
                     android:id="@+id/tv_battle_message"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text=""
+                    android:text="Spreman za borbu!"
                     android:textSize="14sp"
                     android:textColor="@color/text_primary"
                     android:textAlignment="center"
-                    android:minHeight="20dp" />
+                    android:minHeight="30dp"
+                    android:gravity="center"
+                    android:padding="8dp" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- PLAYER SECTION -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/surface_color">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Player Title -->
+                <TextView
+                    android:id="@+id/tv_player_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TVOJA SNAGA"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Base PP -->
+                <TextView
+                    android:id="@+id/tv_base_pp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Osnovna PP: Učitava se..."
+                    android:textSize="16sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="4dp" />
+
+                <!-- Equipment Bonus -->
+                <TextView
+                    android:id="@+id/tv_equipment_bonus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+ 0 PP (oprema)"
+                    android:textSize="16sp"
+                    android:textColor="@color/success_color"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/text_secondary"
+                    android:layout_marginVertical="8dp" />
+
+                <!-- Total PP -->
+                <TextView
+                    android:id="@+id/tv_player_pp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="UKUPNO: 0 PP"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_color"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Player PP Progress Bar -->
+                <ProgressBar
+                    android:id="@+id/pb_player_pp"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:progress="0"
+                    android:max="100"
+                    android:progressTint="@color/primary_color" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- EQUIPMENT SECTION -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/surface_color">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Equipment Title -->
+                <TextView
+                    android:id="@+id/tv_equipment_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="AKTIVNA OPREMA"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Equipment List -->
+                <LinearLayout
+                    android:id="@+id/ll_active_equipment"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- No Equipment message -->
+                    <TextView
+                        android:id="@+id/tv_no_equipment"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Nema aktivne opreme"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_secondary"
+                        android:textStyle="italic" />
+
+                </LinearLayout>
+
+                <!-- Prepare for Battle Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_prepare_battle"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:text="Pripremi opremu"
+                    android:textColor="@color/primary_color"
+                    app:strokeColor="@color/primary_color"
+                    app:cornerRadius="8dp" />
 
             </LinearLayout>
 

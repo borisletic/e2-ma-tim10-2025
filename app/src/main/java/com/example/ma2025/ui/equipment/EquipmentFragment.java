@@ -559,4 +559,35 @@ public class EquipmentFragment extends Fragment implements
             Toast.makeText(getContext(), "Greška pri unapređivanju", Toast.LENGTH_SHORT).show();
         }
     }
+
+    public void saveRewardEquipment(Equipment equipment) {
+        try {
+            if (mAuth.getCurrentUser() == null || equipment == null) {
+                Log.e(TAG, "Cannot save reward equipment - user not authenticated or equipment is null");
+                return;
+            }
+
+            String userId = mAuth.getCurrentUser().getUid();
+            equipment.setUserId(userId);
+            equipment.setId(null); // Ensure new document
+
+            db.collection(Constants.COLLECTION_EQUIPMENT)
+                    .add(equipment)
+                    .addOnSuccessListener(documentReference -> {
+                        equipment.setId(documentReference.getId());
+                        Log.d(TAG, "Reward equipment saved successfully: " + equipment.getName());
+
+                        // Refresh equipment list if currently viewing
+                        if (binding != null && binding.recyclerViewEquipment.getVisibility() == View.VISIBLE) {
+                            loadUserEquipment();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error saving reward equipment", e);
+                    });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Exception in saveRewardEquipment", e);
+        }
+    }
 }
