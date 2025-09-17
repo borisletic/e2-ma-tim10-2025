@@ -293,11 +293,11 @@ public class GameLogicUtils {
     /**
      * Generiše nasumičnu opremu nakon pobede nad bosom (20% šanse)
      */
-    public static Equipment generateRandomEquipmentReward(int playerLevel) {
+    public static Equipment generateRandomEquipmentReward(int playerLevel, double equipmentChance) {
         Random random = new Random();
 
-        // 20% šanse za opremu
-        if (random.nextFloat() > 0.20f) {
+        // Custom šansa za opremu (umesto fiksnih 20%)
+        if (random.nextFloat() > equipmentChance) {
             return null; // Nema nagrade
         }
 

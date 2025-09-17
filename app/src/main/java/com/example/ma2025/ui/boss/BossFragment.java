@@ -1,6 +1,8 @@
 package com.example.ma2025.ui.boss;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +11,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -24,6 +27,8 @@ import com.example.ma2025.data.models.User;
 import com.example.ma2025.utils.BossAnimationManager;
 import com.example.ma2025.utils.Constants;
 import com.example.ma2025.utils.GameLogicUtils;
+import com.example.ma2025.utils.ShakeDetector;
+import com.example.ma2025.utils.TreasureChestAnimator;
 import com.example.ma2025.viewmodels.BossViewModel;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -40,7 +45,7 @@ public class BossFragment extends Fragment {
     private ProgressBar pbBossHp;
 
     // Player stats UI components
-    private TextView tvPlayerTitle, tvPlayerPp, tvBasePp, tvEquipmentBonus;
+    private TextView tvPlayerTitle, tvPlayerPp;
     private ProgressBar pbPlayerPp;
 
     // Equipment display
@@ -51,10 +56,19 @@ public class BossFragment extends Fragment {
     private Button btnPrepareForBattle, btnAttack;
     private TextView tvAttacksRemaining, tvBattleMessage, tvAttackSuccessRate;
 
+    // Treasure chest components
+    private ImageView ivTreasureChest;
+    private ShakeDetector shakeDetector;
+    private TreasureChestAnimator chestAnimator;
+    private boolean isChestReadyToOpen = false;
+    private boolean isWaitingForShake = false;
+    private int pendingCoinsReward = 0;
+    private Equipment pendingEquipmentReward = null;
+
     // Animation and state
     private BossAnimationManager animationManager;
-    private int attacksRemaining = 5;
-    private final int maxAttacks = 5;
+    private RelativeLayout rlTreasureOverlay;
+    private ImageView ivTreasureChestFullscreen;
 
     // ViewModel
     private BossViewModel bossViewModel;
@@ -75,6 +89,7 @@ public class BossFragment extends Fragment {
         setupClickListeners();
 
         bossViewModel.refreshAllPpData();
+        Log.d(TAG, "=== onViewCreated finished, calling calculateAttackSuccessRate ===");
         setupInitialBattleState();
     }
 
@@ -89,8 +104,6 @@ public class BossFragment extends Fragment {
         // Player section
         tvPlayerTitle = view.findViewById(R.id.tv_player_title);
         tvPlayerPp = view.findViewById(R.id.tv_player_pp);
-        tvBasePp = view.findViewById(R.id.tv_base_pp);
-        tvEquipmentBonus = view.findViewById(R.id.tv_equipment_bonus);
         pbPlayerPp = view.findViewById(R.id.pb_player_pp);
 
         // Equipment section
@@ -104,11 +117,19 @@ public class BossFragment extends Fragment {
         tvAttacksRemaining = view.findViewById(R.id.tv_attacks_remaining);
         tvBattleMessage = view.findViewById(R.id.tv_battle_message);
         tvAttackSuccessRate = view.findViewById(R.id.tv_attack_success_rate);
+
+        // Treasure chest
+        ivTreasureChest = view.findViewById(R.id.iv_treasure_chest);
+
+        rlTreasureOverlay = view.findViewById(R.id.rl_treasure_overlay);
+        ivTreasureChestFullscreen = view.findViewById(R.id.iv_treasure_chest_fullscreen);
     }
 
     private void setupViewModel() {
         bossViewModel = new ViewModelProvider(this).get(BossViewModel.class);
         setupAnimation();
+        setupShakeDetector();
+        setupChestAnimator();
     }
 
     private void setupAnimation() {
@@ -117,21 +138,59 @@ public class BossFragment extends Fragment {
         }
     }
 
+    private void setupShakeDetector() {
+        if (getContext() != null) {
+            shakeDetector = new ShakeDetector(getContext());
+            shakeDetector.setOnShakeListener(shakeCount -> {
+                if (isWaitingForShake && isChestReadyToOpen) {
+                    openTreasureChest();
+                }
+            });
+        }
+    }
+
+    private void setupChestAnimator() {
+        if (getContext() != null && ivTreasureChestFullscreen != null) {
+            chestAnimator = new TreasureChestAnimator(getContext(), ivTreasureChestFullscreen);
+        }
+    }
+
     private void setupInitialBattleState() {
         tvBattleMessage.setText("Spreman za borbu!");
-        tvAttacksRemaining.setText("Napadi: " + attacksRemaining + " od " + maxAttacks);
-
         tvBossTitle.setText("BOSS");
         tvPlayerTitle.setText("TVOJA SNAGA");
         tvEquipmentTitle.setText("AKTIVNA OPREMA");
-
-        updateAttackSuccessRate();
+        bossViewModel.calculateAttackSuccessRate();
     }
 
     private void setupObservers() {
         bossViewModel.getUserLevel().observe(getViewLifecycleOwner(), level -> {
             if (level != null) {
-                updateBossDisplay(level);
+                // Prikaži korisnikov nivo u UI
+                tvPlayerTitle.setText("TVOJA SNAGA (Nivo " + level + ")");
+
+                if (level <= 0) {
+                    // Sakrij boss UI potpuno
+                    /*
+                    btnAttack.setVisibility(View.GONE);
+                    ivBossSprite.setVisibility(View.GONE);
+                    tvBossLevel.setVisibility(View.GONE);
+                    tvBossTitle.setVisibility(View.GONE);
+                    tvBossHp.setVisibility(View.GONE);
+                    pbBossHp.setVisibility(View.GONE);
+                    tvBattleMessage.setText("Rešavajte zadatke da dostignete nivo 1 i otključate borbu sa prvim bosom!");
+                     */
+                } else {
+                    // Prikaži boss UI
+                    btnAttack.setVisibility(View.VISIBLE);
+                    ivBossSprite.setVisibility(View.VISIBLE);
+                    tvBossLevel.setVisibility(View.VISIBLE);
+                    tvBossTitle.setVisibility(View.VISIBLE);
+                    tvBossHp.setVisibility(View.VISIBLE);
+                    pbBossHp.setVisibility(View.VISIBLE);
+
+                    updateBossDisplay(level);
+                }
             }
         });
 
@@ -143,14 +202,6 @@ public class BossFragment extends Fragment {
 
         bossViewModel.getUserBasePp().observe(getViewLifecycleOwner(), basePp -> {
             if (basePp != null) {
-                tvBasePp.setText("Osnovna PP: " + basePp);
-                updateTotalPpDisplay();
-            }
-        });
-
-        bossViewModel.getEquipmentPpBonus().observe(getViewLifecycleOwner(), bonus -> {
-            if (bonus != null) {
-                updateEquipmentBonusDisplay(bonus);
                 updateTotalPpDisplay();
             }
         });
@@ -161,18 +212,56 @@ public class BossFragment extends Fragment {
             }
         });
 
-        bossViewModel.getActiveEquipment().observe(getViewLifecycleOwner(), this::updateEquipmentDisplay);
+        bossViewModel.getAttacksRemaining().observe(getViewLifecycleOwner(), attacks -> {
+            if (attacks != null) {
+                tvAttacksRemaining.setText("Napadi: " + attacks + " od 5");
+
+                if (attacks <= 0) {
+                    btnAttack.setEnabled(false);
+                    btnAttack.setAlpha(0.5f);
+
+                    handleBattleEnd();
+                } else {
+                    btnAttack.setEnabled(true);
+                    btnAttack.setAlpha(1.0f);
+                }
+            }
+        });
+
+        bossViewModel.getCurrentBossLevel().observe(getViewLifecycleOwner(), level -> {
+            if (level != null) {
+                updateBossDisplay(level);
+            }
+        });
+
+        bossViewModel.getAttackSuccessRate().observe(getViewLifecycleOwner(), successRate -> {
+            Log.d(TAG, "Attack success rate observer triggered: " + successRate + "%");
+            if (successRate != null) {
+                tvAttackSuccessRate.setText("Šansa napada: " + successRate + "%");
+            }
+        });
+
+        bossViewModel.getActiveEquipment().observe(getViewLifecycleOwner(), equipment -> {
+            updateEquipmentDisplay(equipment);
+        });
     }
 
-    private void updateBossDisplay(int userLevel) {
-        tvBossLevel.setText("Nivo " + userLevel + " Boss");
+    private void updateBossDisplay(int currentBossLevel) {
+        Integer userLevel = bossViewModel.getUserLevel().getValue();
 
-        String bossName = getBossName(userLevel);
-        tvBossTitle.setText(bossName);
-        updateRewardsDisplay(userLevel);
+        if (userLevel == null || userLevel < currentBossLevel) {
+            tvBossLevel.setText("Zakljucan");
+            tvBossTitle.setText("???");
+            ivBossSprite.setAlpha(0.3f);
+        } else {
+            tvBossLevel.setText("Nivo " + currentBossLevel + " Boss");
+            String bossName = getBossName(currentBossLevel);
+            tvBossTitle.setText(bossName);
+            ivBossSprite.setAlpha(1.0f);
+            updateRewardsDisplay(currentBossLevel);
+        }
 
-
-        Log.d(TAG, "Boss display updated for level: " + userLevel);
+        Log.d(TAG, "Boss display updated for level: " + currentBossLevel);
     }
 
     private String getBossName(int level) {
@@ -192,7 +281,6 @@ public class BossFragment extends Fragment {
 
         int progress = maxHp > 0 ? (int) ((currentHp * 100.0) / maxHp) : 0;
         pbBossHp.setProgress(progress);
-
     }
 
     private void updateRewardsDisplay(int userLevel) {
@@ -212,17 +300,6 @@ public class BossFragment extends Fragment {
 
         int previousReward = calculateCoinsReward(level - 1);
         return (int) (previousReward * 1.2);
-    }
-
-    private void updateEquipmentBonusDisplay(int bonus) {
-        if (bonus > 0) {
-            tvEquipmentBonus.setText("+ " + bonus + " PP (oprema)");
-            tvEquipmentBonus.setVisibility(View.VISIBLE);
-        } else {
-            tvEquipmentBonus.setText("Nema bonus");
-            tvEquipmentBonus.setVisibility(View.VISIBLE);
-            tvEquipmentBonus.setTextColor(getResources().getColor(android.R.color.darker_gray));
-        }
     }
 
     private void updateTotalPpDisplay() {
@@ -321,21 +398,70 @@ public class BossFragment extends Fragment {
         btnAttack.setOnClickListener(v -> performAttack());
     }
 
-    private void performAttack() {
-        if (attacksRemaining <= 0) {
-            tvBattleMessage.setText("Nemaš više napada za danas!");
-            btnAttack.setEnabled(false);
-            return;
+    private void handleBattleEnd() {
+        Integer userLevel = bossViewModel.getUserLevel().getValue();
+        Integer currentHp = bossViewModel.getBossCurrentHp().getValue();
+        Integer maxHp = bossViewModel.getBossMaxHp().getValue();
+
+        if (userLevel == null || currentHp == null || maxHp == null) return;
+
+        if (currentHp <= 0) {
+            handleBossDefeat();
+        } else {
+            double hpPercentage = (double) currentHp / maxHp;
+            if (hpPercentage <= 0.5) {
+                handlePartialVictory(userLevel, hpPercentage);
+            } else {
+                tvBattleMessage.setText("Boss nije dovoljno oslabljen! Potrebno je umanjiti mu bar 50% HP-a za nagradu.");
+            }
+        }
+    }
+
+    private void handlePartialVictory(int userLevel, double remainingHpPercentage) {
+        int fullCoinsReward = calculateCoinsReward(userLevel);
+        int partialCoinsReward = fullCoinsReward / 2;
+        double partialEquipmentChance = 0.10; // 10%
+
+        Equipment rewardEquipment = GameLogicUtils.generateRandomEquipmentReward(userLevel, partialEquipmentChance);
+
+        updateUserCoins(partialCoinsReward);
+        if (rewardEquipment != null) {
+            saveEquipmentReward(rewardEquipment);
         }
 
+        // Prikaži kovčeg umesto teksta
+        showTreasureChest(partialCoinsReward, rewardEquipment);
+
+        Log.d(TAG, String.format("Partial victory: %d coins (was %d), %.1f%% equipment chance",
+                partialCoinsReward, fullCoinsReward, partialEquipmentChance * 100));
+    }
+
+    private void performAttack() {
         Integer totalPp = bossViewModel.getTotalPp().getValue();
         Integer currentHp = bossViewModel.getBossCurrentHp().getValue();
+        Integer successRate = bossViewModel.getAttackSuccessRate().getValue();
 
         if (totalPp == null || currentHp == null || currentHp <= 0) {
             tvBattleMessage.setText("Boss je već poražen!");
             return;
         }
 
+        // Proveri da li napad uspeva na osnovu uspešnosti zadataka
+        boolean attackSucceeds = GameLogicUtils.isAttackSuccessful(successRate != null ? successRate : 50);
+
+        if (!attackSucceeds) {
+            tvBattleMessage.setText("Promašaj! Pokušaj ponovo.");
+
+            // Animacija promašaja
+            if (animationManager != null) {
+                animationManager.playShakeEffect();
+            }
+
+            bossViewModel.useAttack();
+            return;
+        }
+
+        // Uspešan napad
         int damage = totalPp;
 
         if (animationManager != null) {
@@ -344,10 +470,7 @@ public class BossFragment extends Fragment {
         }
 
         int newHp = Math.max(0, currentHp - damage);
-        bossViewModel.setBossCurrentHp(newHp);
-
-        attacksRemaining--;
-        tvAttacksRemaining.setText("Napadi: " + attacksRemaining + " od " + maxAttacks);
+        bossViewModel.updateBossHp(newHp);
 
         if (newHp <= 0) {
             tvBattleMessage.setText("POBEDA! Porazio si " + getBossName(bossViewModel.getUserLevel().getValue()) + "!");
@@ -356,46 +479,114 @@ public class BossFragment extends Fragment {
             if (animationManager != null) {
                 animationManager.playDeathAnimation();
             }
-            handleBossDefeat();
+
+            handleBattleEnd();
         } else {
-            tvBattleMessage.setText("Pogodak! Naneo si " + damage + " štete!");
+            tvBattleMessage.setText("Pogodak! Naneo si " + damage + " HP štete!");
         }
 
-        if (attacksRemaining <= 0) {
-            btnAttack.setEnabled(false);
-            btnAttack.setAlpha(0.5f);
-        }
-    }
-
-    private void updateAttackSuccessRate() {
-        // Placeholder - treba implementirati logiku na osnovu uspešnosti zadataka
-        // Za sada hardkodovano na 68%
-        int successRate = 68; // TODO: Izračunati na osnovu rešenih zadataka
-        tvAttackSuccessRate.setText("Šansa napada: " + successRate + "%");
+        bossViewModel.useAttack();
     }
 
     private void handleBossDefeat() {
+        bossViewModel.markCurrentBossDefeated();
+
+        List<Integer> undefeatedLevels = bossViewModel.getUndefeatedBossLevels().getValue();
+
+        if (undefeatedLevels != null && !undefeatedLevels.isEmpty()) {
+            tvBattleMessage.setText("Boss poražen! Priprema se sledeći boss...");
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                bossViewModel.resetAttacks();
+                btnAttack.setEnabled(true);
+                btnAttack.setAlpha(1.0f);
+            }, 2000);
+            return;
+        }
+
         Integer userLevel = bossViewModel.getUserLevel().getValue();
         if (userLevel == null) return;
 
         int coinsReward = calculateCoinsReward(userLevel);
+        Equipment rewardEquipment = GameLogicUtils.generateRandomEquipmentReward(userLevel, 0.20);
 
-        Equipment rewardEquipment = GameLogicUtils.generateRandomEquipmentReward(userLevel);
-
-        String rewardMessage = "Dobio si " + coinsReward + " coins!";
+        updateUserCoins(coinsReward);
         if (rewardEquipment != null) {
-            String equipmentName = rewardEquipment.getName();
-            rewardMessage += " + " + equipmentName + "!";
+            saveEquipmentReward(rewardEquipment);
+        }
+
+        showTreasureChest(coinsReward, rewardEquipment);
+    }
+
+    // ========== TREASURE CHEST LOGIC ==========
+
+    private void showTreasureChest(int coinsReward, Equipment rewardEquipment) {
+        pendingCoinsReward = coinsReward;
+        pendingEquipmentReward = rewardEquipment;
+
+        rlTreasureOverlay.setVisibility(View.VISIBLE);
+        tvBattleMessage.setText("Protresite telefon da otvorite kovčeg sa nagradama!");
+
+        if (chestAnimator != null) {
+            chestAnimator.showReadyToOpenAnimation();
+        }
+
+        isChestReadyToOpen = true;
+        isWaitingForShake = true;
+
+        if (shakeDetector != null) {
+            shakeDetector.start();
+        }
+
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (isWaitingForShake && isChestReadyToOpen) {
+                openTreasureChest();
+            }
+        }, 10000);
+    }
+
+    private void openTreasureChest() {
+        isWaitingForShake = false;
+
+        if (shakeDetector != null) {
+            shakeDetector.stop();
+        }
+
+        if (chestAnimator != null) {
+            chestAnimator.openChest(() -> {
+                showRewards();
+
+                // Sakrij fullscreen overlay nakon 3 sekunde
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    rlTreasureOverlay.setVisibility(View.GONE);
+                    if (chestAnimator != null) {
+                        chestAnimator.resetChest();
+                    }
+                    isChestReadyToOpen = false;
+                }, 3000);
+            });
+        }
+    }
+
+    private void showRewards() {
+        String rewardMessage = "Dobili ste " + pendingCoinsReward + " novčića!";
+        if (pendingEquipmentReward != null) {
+            rewardMessage += "\n+ " + pendingEquipmentReward.getName() + "!";
         }
 
         tvBattleMessage.setText(rewardMessage);
 
-        updateUserCoins(coinsReward);
-
-        if (rewardEquipment != null) {
-            saveEquipmentReward(rewardEquipment);
+        // Prikaži Toast sa bonus porukom
+        if (getContext() != null) {
+            Toast.makeText(getContext(),
+                    "Kovčeg otvoren! " + rewardMessage,
+                    Toast.LENGTH_LONG).show();
         }
+
+        Log.d(TAG, "Chest opened! Rewards: " + pendingCoinsReward + " coins, equipment: " +
+                (pendingEquipmentReward != null ? pendingEquipmentReward.getName() : "none"));
     }
+
+    // ========== DATABASE OPERATIONS ==========
 
     private void updateUserCoins(int coinsToAdd) {
         String userId = FirebaseAuth.getInstance().getCurrentUser() != null ?
@@ -445,12 +636,6 @@ public class BossFragment extends Fragment {
                 .addOnSuccessListener(documentReference -> {
                     equipment.setId(documentReference.getId());
                     Log.d(TAG, "Reward equipment saved: " + equipment.getName());
-
-                    if (getContext() != null) {
-                        Toast.makeText(getContext(),
-                                "Bonus nagrada! Dobili ste: " + equipment.getName(),
-                                Toast.LENGTH_LONG).show();
-                    }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error saving reward equipment", e);
@@ -462,6 +647,12 @@ public class BossFragment extends Fragment {
         super.onDestroyView();
         if (animationManager != null) {
             animationManager.cleanup();
+        }
+        if (shakeDetector != null) {
+            shakeDetector.stop();
+        }
+        if (chestAnimator != null) {
+            chestAnimator.cleanup();
         }
     }
 }

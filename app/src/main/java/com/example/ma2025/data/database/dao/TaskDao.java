@@ -145,6 +145,11 @@ public interface TaskDao {
             " AND due_time IS NOT NULL AND due_time < :expirationThreshold")
     List<TaskEntity> getExpiredActiveTasks(String userId, long expirationThreshold);
 
+    @Query("SELECT * FROM tasks WHERE user_id = :userId " +
+            "AND created_at >= :startTime AND created_at <= :endTime " +
+            "ORDER BY created_at ASC")
+    List<TaskEntity> getTasksCreatedInPeriod(String userId, long startTime, long endTime);
+
     // Inner classes for query results
     public static class DifficultyCount {
         public int difficulty;

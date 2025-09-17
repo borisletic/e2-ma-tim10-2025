@@ -1,6 +1,8 @@
 package com.example.ma2025.data.repositories;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -17,11 +19,11 @@ import com.example.ma2025.utils.DateUtils;
 import com.example.ma2025.utils.GameLogicUtils;
 import com.example.ma2025.viewmodels.TaskListViewModel;
 import com.google.firebase.firestore.FirebaseFirestore;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class TaskRepository {
     private static final String TAG = "TaskRepository";
@@ -124,19 +126,30 @@ public class TaskRepository {
         return count;
     }
 
-    public List<TaskEntity> getRepeatingTasks(String userId) {
-        return taskDao.getRepeatingTasks(userId);
+    public boolean doesTaskExceedQuota(TaskEntity task) {
+        return !canEarnXpForTask(task, task.userId);
     }
 
-    public LiveData<List<TaskEntity>> getTasksForDate(String userId, long date) {
-        long startOfDay = DateUtils.getStartOfDay(date);
-        long endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
-        return taskDao.getTasksForDateRange(userId, startOfDay, endOfDay);
+    public void getTasksForPeriod(String userId, long startTime, long endTime, OnTasksRetrievedCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<TaskEntity> tasks = taskDao.getTasksCreatedInPeriod(userId, startTime, endTime);
+                if (callback != null) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            callback.onTasksRetrieved(tasks));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error getting tasks for period", e);
+                if (callback != null) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            callback.onTasksRetrieved(new ArrayList<>()));
+                }
+            }
+        });
     }
 
-    public LiveData<List<TaskEntity>> getCurrentAndFutureTasks(String userId) {
-        long now = System.currentTimeMillis();
-        return taskDao.getTasksForDateRange(userId, now, Long.MAX_VALUE);
+    public interface OnTasksRetrievedCallback {
+        void onTasksRetrieved(List<TaskEntity> tasks);
     }
 
     public void insertTask(TaskEntity task, OnTaskInsertedCallback callback) {
@@ -732,6 +745,31 @@ public class TaskRepository {
         long startOfMonth = DateUtils.getStartOfMonth(System.currentTimeMillis());
         long endOfMonth = DateUtils.getEndOfMonth(System.currentTimeMillis());
         return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, startOfMonth, endOfMonth);
+    }
+
+    // Dodajte ove metode u TaskRepository.java
+    public int getCompletedTasksCountByDifficultyForDate(String userId, int difficulty, long date) {
+        long dayStart = DateUtils.getStartOfDay(date);
+        long dayEnd = dayStart + 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByDifficultyAndDateRange(userId, difficulty, dayStart, dayEnd);
+    }
+
+    public int getCompletedTasksCountByImportanceForDate(String userId, int importance, long date) {
+        long dayStart = DateUtils.getStartOfDay(date);
+        long dayEnd = dayStart + 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, dayStart, dayEnd);
+    }
+
+    public int getWeeklyCompletedTasksCountForDate(String userId, int difficulty, long date) {
+        long weekStart = DateUtils.getStartOfWeek(date);
+        long weekEnd = weekStart + 7 * 24 * 60 * 60 * 1000;
+        return taskDao.getCompletedTasksCountByDifficultyAndDateRange(userId, difficulty, weekStart, weekEnd);
+    }
+
+    public int getMonthlyCompletedTasksCountByImportanceForDate(String userId, int importance, long date) {
+        long monthStart = DateUtils.getStartOfMonth(date);
+        long monthEnd = DateUtils.getEndOfMonth(date);
+        return taskDao.getCompletedTasksCountByImportanceAndDateRange(userId, importance, monthStart, monthEnd);
     }
 
     // ========== STATISTICS ==========
