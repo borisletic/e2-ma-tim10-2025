@@ -1,0 +1,395 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Main Content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/background_color">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- EQUIPMENT SECTION -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/surface_color">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Equipment Title -->
+                    <TextView
+                        android:id="@+id/tv_equipment_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AKTIVNA OPREMA"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- Equipment List -->
+                    <LinearLayout
+                        android:id="@+id/ll_active_equipment"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <!-- No Equipment message -->
+                        <TextView
+                            android:id="@+id/tv_no_equipment"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Nema aktivne opreme"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_secondary"
+                            android:textStyle="italic" />
+
+                    </LinearLayout>
+
+                    <!-- Prepare for Battle Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_prepare_battle"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="12dp"
+                        android:text="Pripremi opremu"
+                        android:textColor="@color/primary_color"
+                        app:strokeColor="@color/primary_color"
+                        app:cornerRadius="8dp" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- BOSS SECTION -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/surface_color">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Boss Title -->
+                    <TextView
+                        android:id="@+id/tv_boss_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="POČETNI ČUVAR"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/error_color"
+                        android:layout_marginBottom="4dp"
+                        android:layout_gravity="center" />
+
+                    <!-- Boss Level -->
+                    <TextView
+                        android:id="@+id/tv_boss_level"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginBottom="12dp"
+                        android:text="Nivo 1 Boss"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp" />
+
+                    <!-- Boss Visual Area -->
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:layout_marginBottom="16dp"
+                        android:background="@drawable/boss_arena_bg">
+
+                        <ImageView
+                            android:id="@+id/iv_boss_sprite"
+                            android:layout_width="80dp"
+                            android:layout_height="80dp"
+                            android:layout_centerInParent="true"
+                            android:src="@drawable/ic_boss_idle"
+                            android:contentDescription="Boss sprite" />
+
+                        <!-- TREASURE CHEST - Keep for backwards compatibility -->
+                        <ImageView
+                            android:id="@+id/iv_treasure_chest"
+                            android:layout_width="100dp"
+                            android:layout_height="100dp"
+                            android:layout_centerInParent="true"
+                            android:src="@drawable/treasure_chest_closed"
+                            android:visibility="gone"
+                            android:contentDescription="Treasure chest" />
+
+                    </RelativeLayout>
+
+                    <!-- Boss HP -->
+                    <TextView
+                        android:id="@+id/tv_boss_hp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="200 / 200 HP"
+                        android:textSize="16sp"
+                        android:textColor="@color/error_color"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"
+                        android:layout_gravity="center" />
+
+                    <!-- Boss HP Progress Bar -->
+                    <ProgressBar
+                        android:id="@+id/pb_boss_hp"
+                        android:layout_width="match_parent"
+                        android:layout_height="12dp"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:progress="100"
+                        android:max="100"
+                        android:progressTint="@color/error_color"
+                        android:layout_marginBottom="16dp" />
+
+                    <TextView
+                        android:id="@+id/tv_attack_success_rate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Šansa napada: 68%"
+                        android:textSize="18sp"
+                        android:textColor="@color/text_primary"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="16dp"
+                        android:layout_gravity="center" />
+
+                    <!-- Player Title -->
+                    <TextView
+                        android:id="@+id/tv_player_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="TVOJA SNAGA"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"/>
+
+                    <!-- Total PP -->
+                    <TextView
+                        android:id="@+id/tv_player_pp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ukupno: 0 PP"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_color" />
+
+                    <!-- Player PP Progress Bar -->
+                    <ProgressBar
+                        android:id="@+id/pb_player_pp"
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:progress="0"
+                        android:max="100"
+                        android:progressTint="@color/primary_color" />
+
+                    <!-- Potential Rewards Section -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="POTENCIJALNE NAGRADE"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Coins Reward -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="4dp"
+                        android:layout_marginTop="4dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Novčići:"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_coins_reward"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="200"
+                            android:textSize="16sp"
+                            android:textColor="@color/success_color"
+                            android:textStyle="bold"
+                            android:layout_marginStart="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- Equipment Chance -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Oprema:"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_equipment_chance"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="20% šanse"
+                            android:textSize="16sp"
+                            android:textColor="@color/primary_color"
+                            android:textStyle="bold"
+                            android:layout_marginStart="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- Attack Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_attack"
+                        style="@style/Widget.MaterialComponents.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:text="NAPADNI!"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/white"
+                        android:backgroundTint="@color/error_color"
+                        app:cornerRadius="8dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="6dp" />
+
+                    <!-- Battle Stats -->
+                    <TextView
+                        android:id="@+id/tv_attacks_remaining"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Napadi: 5 od 5"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginBottom="8dp"
+                        android:layout_gravity="center"/>
+
+                    <!-- Battle Message -->
+                    <TextView
+                        android:id="@+id/tv_battle_message"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Spreman za borbu!"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/error_color"
+                        android:padding="8dp" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- PLAYER SECTION -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/surface_color">
+
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- FULLSCREEN TREASURE CHEST OVERLAY -->
+    <RelativeLayout
+        android:id="@+id/rl_treasure_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#E6000000"
+        android:visibility="gone"
+        android:elevation="20dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <!-- Magical Background Effect -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.3" />
+
+        <!-- Main Chest Container -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <!-- Large Treasure Chest -->
+            <ImageView
+                android:id="@+id/iv_treasure_chest_fullscreen"
+                android:layout_width="250dp"
+                android:layout_height="250dp"
+                android:src="@drawable/treasure_chest_closed"
+                android:layout_marginBottom="30dp"
+                android:elevation="5dp" />
+
+            <!-- Shake Instruction -->
+            <TextView
+                android:id="@+id/tv_shake_instruction"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PROTRESITE TELEFON"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"
+                android:shadowColor="#000000"
+                android:shadowDx="1"
+                android:shadowDy="1"
+                android:shadowRadius="3" />
+
+            <!-- Subtitle -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="da otvorite kovčeg sa nagradama!"
+                android:textColor="#CCFFFFFF"
+                android:textSize="16sp"
+                android:gravity="center"
+                android:shadowColor="#000000"
+                android:shadowDx="1"
+                android:shadowDy="1"
+                android:shadowRadius="2" />
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+</FrameLayout>

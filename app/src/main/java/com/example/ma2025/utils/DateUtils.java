@@ -107,6 +107,75 @@ public class DateUtils {
         return cal.getTimeInMillis();
     }
 
+    // ========== NEW METHODS FOR XP QUOTAS ==========
+
+    /**
+     * Returns the start of the current week (Monday 00:00:00)
+     * Following ISO 8601 standard where Monday is the first day of the week
+     */
+    public static long getStartOfWeek(long timestamp) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(timestamp);
+
+        // Set to start of day
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+
+        // Get current day of week (Sunday = 1, Monday = 2, ..., Saturday = 7)
+        int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
+
+        // Calculate days to subtract to get to Monday
+        int daysToSubtract;
+        if (dayOfWeek == Calendar.SUNDAY) {
+            // Sunday is 6 days after Monday
+            daysToSubtract = 6;
+        } else {
+            // Monday = 2, so subtract (dayOfWeek - 2) to get to Monday
+            daysToSubtract = dayOfWeek - Calendar.MONDAY;
+        }
+
+        cal.add(Calendar.DAY_OF_YEAR, -daysToSubtract);
+        return cal.getTimeInMillis();
+    }
+
+    /**
+     * Returns the start of the current month (1st day 00:00:00)
+     */
+    public static long getStartOfMonth(long timestamp) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(timestamp);
+
+        // Set to first day of month at 00:00:00
+        cal.set(Calendar.DAY_OF_MONTH, 1);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+
+        return cal.getTimeInMillis();
+    }
+
+    /**
+     * Returns the end of the current month (last day 23:59:59.999)
+     */
+    public static long getEndOfMonth(long timestamp) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(timestamp);
+
+        // Set to last day of month at 23:59:59.999
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+
+        return cal.getTimeInMillis();
+    }
+
+    // ========== EXISTING METHODS ==========
+
     public static boolean isWithinDays(long timestamp, int days) {
         long now = System.currentTimeMillis();
         long diff = now - timestamp;
@@ -122,5 +191,37 @@ public class DateUtils {
 
     public static long addHours(long timestamp, int hours) {
         return timestamp + TimeUnit.HOURS.toMillis(hours);
+    }
+
+    // ========== UTILITY METHODS FOR DEBUGGING ==========
+
+    /**
+     * Helper method for debugging - formats timestamp to readable string
+     */
+    public static String debugTimestamp(long timestamp) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        return sdf.format(new Date(timestamp));
+    }
+
+    /**
+     * Helper method to check if two timestamps are in the same week
+     */
+    public static boolean isSameWeek(long timestamp1, long timestamp2) {
+        long startOfWeek1 = getStartOfWeek(timestamp1);
+        long startOfWeek2 = getStartOfWeek(timestamp2);
+        return startOfWeek1 == startOfWeek2;
+    }
+
+    /**
+     * Helper method to check if two timestamps are in the same month
+     */
+    public static boolean isSameMonth(long timestamp1, long timestamp2) {
+        Calendar cal1 = Calendar.getInstance();
+        Calendar cal2 = Calendar.getInstance();
+        cal1.setTimeInMillis(timestamp1);
+        cal2.setTimeInMillis(timestamp2);
+
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                cal1.get(Calendar.MONTH) == cal2.get(Calendar.MONTH);
     }
 }

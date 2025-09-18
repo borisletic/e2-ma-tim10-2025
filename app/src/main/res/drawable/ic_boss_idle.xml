@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Background circle -->
+    <path
+        android:pathData="M60,60m-50,0a50,50 0,1 1,100 0a50,50 0,1 1,-100 0"
+        android:fillColor="#424242" />
+
+    <!-- Boss body (rectangle) -->
+    <path
+        android:pathData="M30,45h60v45a15,15 0,0 1,-15 15h-30a15,15 0,0 1,-15 -15z"
+        android:fillColor="#616161" />
+
+    <!-- Boss head (circle) -->
+    <path
+        android:pathData="M60,40m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0"
+        android:fillColor="#757575" />
+
+    <!-- Eyes (circles as paths) -->
+    <path
+        android:pathData="M52,36m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"
+        android:fillColor="#F44336" />
+
+    <path
+        android:pathData="M68,36m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"
+        android:fillColor="#F44336" />
+
+    <!-- Angry eyebrows -->
+    <path
+        android:pathData="M47,30L57,33L56,35L46,32z"
+        android:fillColor="#424242" />
+
+    <path
+        android:pathData="M64,33L74,30L74,32L64,35z"
+        android:fillColor="#424242" />
+
+    <!-- Mouth (angry) -->
+    <path
+        android:pathData="M52,44Q60,40 68,44L67,46Q60,42 53,46z"
+        android:fillColor="#424242" />
+
+    <!-- Boss arms -->
+    <path
+        android:pathData="M25,55h10v20a5,5 0,0 1,-5 5h-5a5,5 0,0 1,-5 -5z"
+        android:fillColor="#757575" />
+
+    <path
+        android:pathData="M85,55h10v20a5,5 0,0 1,-5 5h-5a5,5 0,0 1,-5 -5z"
+        android:fillColor="#757575" />
+
+    <!-- Boss weapon (sword) -->
+    <path
+        android:pathData="M95,50h4v25h-4z"
+        android:fillColor="#9E9E9E" />
+
+    <path
+        android:pathData="M93,75h8v3h-8z"
+        android:fillColor="#8D6E63" />
+
+    <!-- Boss legs -->
+    <path
+        android:pathData="M40,100h8v15a4,4 0,0 1,-4 4h-4a4,4 0,0 1,-4 -4z"
+        android:fillColor="#616161" />
+
+    <path
+        android:pathData="M72,100h8v15a4,4 0,0 1,-4 4h-4a4,4 0,0 1,-4 -4z"
+        android:fillColor="#616161" />
+
+</vector>

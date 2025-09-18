@@ -10,9 +10,12 @@ import com.example.ma2025.utils.Constants;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class AllianceRepository {
     private static final String TAG = "AllianceRepository";
@@ -412,11 +415,41 @@ public class AllianceRepository {
                 .addOnSuccessListener(documentReference -> {
                     // Notify other alliance members
                     notifyAllianceMembersOfMessage(allianceId, senderId, senderUsername);
+
+                    // NOVO: Ažuriraj specijalnu misiju za poslatu poruku
+                    updateSpecialMissionForMessage(allianceId, senderId);
+
                     listener.onSuccess("Poruka je poslata");
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error sending message", e);
                     listener.onError("Greška pri slanju poruke");
+                });
+    }
+
+    private void updateSpecialMissionForMessage(String allianceId, String senderId) {
+        SpecialMissionRepository.getInstance().getActiveMission(allianceId)
+                .observeForever(mission -> {
+                    if (mission != null) {
+                        // Koristi trenutni datum
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                        String currentDate = sdf.format(new Date());
+
+                        SpecialMissionRepository.getInstance().updateMissionProgressWithDate(
+                                mission.getId(), senderId, "message_day", currentDate,
+                                new SpecialMissionRepository.OnProgressUpdatedCallback() {
+                                    @Override
+                                    public void onSuccess(int damageDealt, int remainingBossHp) {
+                                        Log.d(TAG, "Special mission updated for message: " + damageDealt + " damage for date " + currentDate);
+                                    }
+
+                                    @Override
+                                    public void onError(String error) {
+                                        Log.e(TAG, "Special mission update failed for message: " + error);
+                                    }
+                                }
+                        );
+                    }
                 });
     }
 

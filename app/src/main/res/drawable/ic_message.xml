@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Message bubble -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M20,2H4C2.9,2 2.01,2.9 2.01,4L2,22L6,18H20C21.1,18 22,17.1 22,16V4C22,2.9 21.1,2 20,2z"/>
+
+    <!-- Text lines -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M6,7H18V8H6V7zM6,10H18V11H6V10zM6,13H15V14H6V13z"/>
+</vector>

@@ -106,8 +106,49 @@ public interface TaskDao {
             "AND DATE(due_time/1000, 'unixepoch') = DATE(:date/1000, 'unixepoch')")
     LiveData<List<TaskEntity>> getActiveTasksForDate(String userId, long date);
 
+    @Query("SELECT COUNT(*) FROM tasks t " +
+            "INNER JOIN task_completions tc ON t.id = tc.task_id " +
+            "WHERE t.user_id = :userId AND t.difficulty = :difficulty " +
+            "AND tc.completion_date BETWEEN :startTime AND :endTime")
+    int getCompletedTasksCountByDifficultyAndDateRange(String userId, int difficulty, long startTime, long endTime);
+
+    @Query("SELECT COUNT(*) FROM tasks t " +
+            "INNER JOIN task_completions tc ON t.id = tc.task_id " +
+            "WHERE t.user_id = :userId AND t.importance = :importance " +
+            "AND tc.completion_date BETWEEN :startTime AND :endTime")
+    int getCompletedTasksCountByImportanceAndDateRange(String userId, int importance, long startTime, long endTime);
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE user_id = :userId AND status = 2")
+    int getTotalFailedTasks(String userId);
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE user_id = :userId AND status = 4")
+    int getTotalPausedTasks(String userId);
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE user_id = :userId AND status = 3")
+    int getTotalCanceledTasks(String userId);
+
     @Query("DELETE FROM tasks")
     void deleteAll();
+
+    @Query("DELETE FROM tasks WHERE id = :taskId OR (parent_task_id = :taskId AND status != :completedStatus)")
+    void deleteRecurringTaskAndFutureInstances(long taskId, int completedStatus);
+
+    @Query("UPDATE tasks SET title = :title, description = :description, " +
+            "difficulty = :difficulty, importance = :importance, " +
+            "updated_at = strftime('%s', 'now') * 1000 " +
+            "WHERE parent_task_id = :masterTaskId AND status IN (0, 4)")
+    void updateFutureInstancesOfRecurringTask(long masterTaskId, String title,
+                                              String description, int difficulty,
+                                              int importance);
+
+    @Query("SELECT * FROM tasks WHERE user_id = :userId AND status = " + TaskEntity.STATUS_ACTIVE +
+            " AND due_time IS NOT NULL AND due_time < :expirationThreshold")
+    List<TaskEntity> getExpiredActiveTasks(String userId, long expirationThreshold);
+
+    @Query("SELECT * FROM tasks WHERE user_id = :userId " +
+            "AND created_at >= :startTime AND created_at <= :endTime " +
+            "ORDER BY created_at ASC")
+    List<TaskEntity> getTasksCreatedInPeriod(String userId, long startTime, long endTime);
 
     // Inner classes for query results
     public static class DifficultyCount {

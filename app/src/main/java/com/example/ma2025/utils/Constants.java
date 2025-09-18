@@ -11,6 +11,8 @@ public class Constants {
     public static final String COLLECTION_MESSAGES = "messages";
     public static final String COLLECTION_BOSSES = "bosses";
     public static final String COLLECTION_MISSIONS = "missions";
+    public static final String COLLECTION_BADGES = "badges";
+    public static final String EFFECT_ATTACK_SUCCESS = "attack_success";
 
     // SharedPreferences
     public static final String PREFS_NAME = "MA2025_Prefs";
@@ -91,6 +93,12 @@ public class Constants {
     public static final int CLOTHING_USES = 2;  // Clothing lasts 2 battles
     public static final int POTION_SINGLE_USE = 1;  // Single-use potions
 
+    // Quotas for special missions
+    public static final int MISSION_QUOTA_STORE_VISITS = 5;
+    public static final int MISSION_QUOTA_SUCCESSFUL_ATTACKS = 10;
+    public static final int MISSION_QUOTA_EASY_TASKS = 10;
+    public static final int MISSION_QUOTA_HARD_TASKS = 6;
+
     // Level Titles
     public static final String[] LEVEL_TITLES = {
             "Novajlija",        // Level 0
@@ -114,7 +122,7 @@ public class Constants {
     // Alliance/Mission
     public static final int ALLIANCE_MIN_MEMBERS = 2;
     public static final int ALLIANCE_MAX_MEMBERS = 10;
-    public static final int MISSION_DURATION_DAYS = 7;
+    public static final int MISSION_DURATION_DAYS = 14;
     public static final int MISSION_BASE_HP_PER_MEMBER = 100;
 
     // Mission Damage Values
