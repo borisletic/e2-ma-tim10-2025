@@ -46,6 +46,7 @@ public class CreateTaskViewModel extends AndroidViewModel {
     }
 
     public void createTask(TaskEntity task) {
+        System.out.println("ViewModel: Creating task: " + task.title + ", isRepeating: " + task.isRepeating);
         TaskValidationResult validation = validateTask(task);
         if (!validation.isValid()) {
             taskCreationResult.postValue(new TaskCreationResult(false, validation.getErrorMessage(), -1));

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Store building -->
+    <path
+        android:fillColor="#8B4513"
+        android:pathData="M3,18V8H21V18H3z"/>
+
+    <!-- Store roof -->
+    <path
+        android:fillColor="#654321"
+        android:pathData="M2,8L12,2L22,8H2z"/>
+
+    <!-- Store door -->
+    <path
+        android:fillColor="#4A4A4A"
+        android:pathData="M10,18V12H14V18H10z"/>
+
+    <!-- Store windows -->
+    <path
+        android:fillColor="#87CEEB"
+        android:pathData="M5,15V10H8V15H5zM16,15V10H19V15H16z"/>
+
+    <!-- Dollar sign -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M11.5,8.5V9.5H12.5V8.5H11.5zM11.5,10V11H10V12H11V13H13V12H14V11H13V10H11.5z"/>
+</vector>

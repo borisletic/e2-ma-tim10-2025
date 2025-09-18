@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.ma2025.MainActivity;
 import com.example.ma2025.R;
 import com.example.ma2025.data.database.entities.TaskEntity;
+import com.example.ma2025.ui.tasks.adapter.TaskAdapter;
 import com.example.ma2025.viewmodels.TaskListViewModel;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;

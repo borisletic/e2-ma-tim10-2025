@@ -15,6 +15,7 @@ import com.example.ma2025.data.database.dao.TaskDao;
 import com.example.ma2025.data.database.dao.TaskCompletionDao;
 import com.example.ma2025.data.database.dao.DailyStatsDao;
 import com.example.ma2025.data.database.dao.UserProgressDao;
+import com.example.ma2025.data.models.Alliance;
 import com.example.ma2025.utils.DateUtils;
 import com.example.ma2025.utils.GameLogicUtils;
 import com.example.ma2025.viewmodels.TaskListViewModel;
@@ -158,10 +159,6 @@ public class TaskRepository {
                 long taskId = taskDao.insertTask(task);
                 task.id = taskId;
 
-                if (task.isRepeating) {
-                    generateRepeatingTaskInstances(task);
-                }
-
                 syncTaskToFirebase(task);
 
                 if (callback != null) {
@@ -174,53 +171,6 @@ public class TaskRepository {
                 }
             }
         });
-    }
-
-    private void generateRepeatingTaskInstances(TaskEntity originalTask) {
-        if (originalTask.startDate == null || originalTask.endDate == null ||
-                originalTask.repeatInterval == null || originalTask.repeatUnit == null) {
-            Log.w(TAG, "Cannot generate instances - missing data");
-            return;
-        }
-
-        try {
-            long currentDate = originalTask.startDate;
-            long intervalInMillis = calculateIntervalInMillis(originalTask.repeatInterval, originalTask.repeatUnit);
-
-            Log.d(TAG, "Generating instances from " + currentDate + " to " + originalTask.endDate +
-                    " with interval " + intervalInMillis);
-
-            int instanceCount = 0;
-            while (currentDate <= originalTask.endDate && instanceCount < 1000) {
-                TaskEntity instance = createTaskInstance(originalTask, currentDate);
-                long instanceId = taskDao.insertTask(instance);
-                Log.d(TAG, "Created task instance with ID: " + instanceId + " for date: " + currentDate);
-
-                currentDate += intervalInMillis;
-                instanceCount++;
-            }
-
-            Log.d(TAG, "Generated " + instanceCount + " task instances");
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error generating repeating task instances", e);
-        }
-    }
-
-    private TaskEntity createTaskInstance(TaskEntity original, long dueTime) {
-        TaskEntity instance = new TaskEntity();
-        instance.userId = original.userId;
-        instance.title = original.title;
-        instance.description = original.description;
-        instance.categoryId = original.categoryId;
-        instance.difficulty = original.difficulty;
-        instance.importance = original.importance;
-        instance.isRepeating = false;
-        instance.dueTime = dueTime;
-        instance.status = TaskEntity.STATUS_ACTIVE;
-        instance.parentTaskId = original.id;
-
-        return instance;
     }
 
     public void updateRecurringTaskFutureInstances(TaskEntity masterTask) {
@@ -241,25 +191,6 @@ public class TaskRepository {
                 Log.e("TaskRepository", "Error updating recurring task instances", e);
             }
         });
-    }
-
-    private long calculateIntervalInMillis(int interval, String unit) {
-        long baseUnit;
-        switch (unit.toLowerCase()) {
-            case "dan":
-            case "day":
-                baseUnit = 24 * 60 * 60 * 1000L;
-                break;
-            case "nedelja":
-            case "week":
-                baseUnit = 7 * 24 * 60 * 60 * 1000L;
-                break;
-            default:
-                baseUnit = 24 * 60 * 60 * 1000L;
-                Log.w(TAG, "Unknown repeat unit: " + unit + ", defaulting to day");
-        }
-
-        return interval * baseUnit;
     }
 
     public void updateTask(TaskEntity task) {
@@ -368,19 +299,19 @@ public class TaskRepository {
                     if (!canEarnXpForTask(task, userId)) {
                         xpEarned = 0;
                     }
-                } else {
-                    Log.d(TAG, "Task not eligible for XP: status=" + task.status);
                 }
 
-                task.markCompleted();
-                taskDao.updateTask(task);
+                if (!task.isRepeating) {
+                    task.markCompleted();
+                    taskDao.updateTask(task);
+                }
 
                 if (!task.canEarnXp()) {
                     xpEarned = 0;
-                    Log.d(TAG, "Task cannot earn XP after completion check");
                 }
 
                 TaskCompletionEntity completion = new TaskCompletionEntity(taskId, xpEarned);
+                completion.completionDate = DateUtils.getStartOfDay(System.currentTimeMillis());
                 taskCompletionDao.insertTaskCompletion(completion);
 
                 if (xpEarned > 0) {
@@ -401,6 +332,8 @@ public class TaskRepository {
 
                 syncTaskToFirebase(task);
                 syncUserProgressToFirebase(userProgress);
+
+                checkAndUpdateSpecialMission(userId, task);
 
                 if (callback != null) {
                     callback.onSuccess(xpEarned, userProgress.currentLevel);
@@ -572,6 +505,9 @@ public class TaskRepository {
 
                 updateDailyStatsForFailedTask(userId, task);
 
+                // Ažuriraj specijalnu misiju za neuspešan zadatak
+                checkAndUpdateSpecialMissionForFailedTask(userId);
+
                 if (callback != null) {
                     callback.onSuccess(0, 0);
                 }
@@ -581,92 +517,6 @@ public class TaskRepository {
                 if (callback != null) {
                     callback.onError(e.getMessage());
                 }
-            }
-        });
-    }
-
-    // ========== BATCH OPERATIONS ==========
-
-    public void completeBatchTasks(List<Long> taskIds, String userId, OnBatchOperationCallback callback) {
-        executor.execute(() -> {
-            try {
-                int completedCount = 0;
-                int totalXpEarned = 0;
-
-                UserProgressEntity userProgress = userProgressDao.getUserProgressSync(userId);
-                if (userProgress == null) {
-                    userProgress = new UserProgressEntity(userId);
-                    userProgressDao.insertOrUpdateUserProgress(userProgress);
-                }
-
-                for (Long taskId : taskIds) {
-                    TaskEntity task = taskDao.getTaskByIdSync(taskId);
-                    if (task != null && task.canBeCompleted()) {
-
-                        int xpEarned = task.calculateXpValue(userProgress.currentLevel);
-
-                        if (!canEarnXpForTask(task, userId)) {
-                            xpEarned = 0;
-                        }
-
-                        task.markCompleted();
-                        taskDao.updateTask(task);
-
-                        TaskCompletionEntity completion = new TaskCompletionEntity(taskId, xpEarned);
-                        taskCompletionDao.insertTaskCompletion(completion);
-
-                        updateDailyStats(userId, task, xpEarned);
-
-                        totalXpEarned += xpEarned;
-                        completedCount++;
-
-                        syncTaskToFirebase(task);
-                    }
-                }
-
-                if (totalXpEarned > 0) {
-                    userProgress.addXp(totalXpEarned);
-
-                    int requiredXp = GameLogicUtils.calculateXpForLevel(userProgress.currentLevel + 1);
-                    if (userProgress.currentXp >= requiredXp) {
-                        int newLevel = userProgress.currentLevel + 1;
-                        int ppGained = GameLogicUtils.calculatePpForLevel(newLevel);
-                        userProgress.levelUp(newLevel, ppGained);
-                    }
-
-                    userProgressDao.updateUserProgress(userProgress);
-                    syncUserProgressToFirebase(userProgress);
-                }
-
-                updateStreak(userId);
-
-                if (callback != null) {
-                    callback.onSuccess(completedCount, totalXpEarned);
-                }
-
-            } catch (Exception e) {
-                Log.e(TAG, "Error in batch task completion", e);
-                if (callback != null) {
-                    callback.onError(e.getMessage());
-                }
-            }
-        });
-    }
-
-    public void deleteBatchTasks(List<TaskEntity> tasks) {
-        executor.execute(() -> {
-            try {
-                for (TaskEntity task : tasks) {
-                    if (task.canBeDeleted()) {
-                        taskDao.deleteTask(task);
-
-                        if (task.firebaseId != null) {
-                            deleteTaskFromFirebase(task.firebaseId);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Error in batch task deletion", e);
             }
         });
     }
@@ -688,16 +538,20 @@ public class TaskRepository {
     private boolean checkDifficultyQuota(int difficulty, String userId) {
         switch (difficulty) {
             case TaskEntity.DIFFICULTY_VERY_EASY:
-                return getDailyCompletedCount(userId, difficulty) < 5;
+                int veryEasyCount = getDailyCompletedCount(userId, difficulty);
+                return veryEasyCount < 5;
 
             case TaskEntity.DIFFICULTY_EASY:
-                return getDailyCompletedCount(userId, difficulty) < 5;
+                int easyCount = getDailyCompletedCount(userId, difficulty);
+                return easyCount < 5;
 
             case TaskEntity.DIFFICULTY_HARD:
-                return getDailyCompletedCount(userId, difficulty) < 2;
+                int hardCount = getDailyCompletedCount(userId, difficulty);
+                return hardCount < 2;
 
             case TaskEntity.DIFFICULTY_EXTREME:
-                return getWeeklyCompletedCount(userId, difficulty) < 1;
+                int extremeCount = getWeeklyCompletedCount(userId, difficulty);
+                return extremeCount < 1;
 
             default:
                 return true;
@@ -707,16 +561,20 @@ public class TaskRepository {
     private boolean checkImportanceQuota(int importance, String userId) {
         switch (importance) {
             case TaskEntity.IMPORTANCE_NORMAL:
-                return getDailyCompletedCountByImportance(userId, importance) < 5;
+                int normalCount = getDailyCompletedCountByImportance(userId, importance);
+                return normalCount < 5;
 
             case TaskEntity.IMPORTANCE_IMPORTANT:
-                return getDailyCompletedCountByImportance(userId, importance) < 5;
+                int importantCount = getDailyCompletedCountByImportance(userId, importance);
+                return importantCount < 5;
 
             case TaskEntity.IMPORTANCE_VERY_IMPORTANT:
-                return getDailyCompletedCountByImportance(userId, importance) < 2;
+                int veryImportantCount = getDailyCompletedCountByImportance(userId, importance);
+                return veryImportantCount < 2;
 
             case TaskEntity.IMPORTANCE_SPECIAL:
-                return getMonthlyCompletedCountByImportance(userId, importance) < 1;
+                int specialCount = getMonthlyCompletedCountByImportance(userId, importance);
+                return specialCount < 1;
 
             default:
                 return true;
@@ -919,6 +777,129 @@ public class TaskRepository {
             if (existing == null) {
                 UserProgressEntity newProgress = new UserProgressEntity(userId);
                 userProgressDao.insertOrUpdateUserProgress(newProgress);
+            }
+        });
+    }
+
+    private void checkAndUpdateSpecialMission(String userId, TaskEntity task) {
+        AllianceRepository allianceRepo = new AllianceRepository();
+        allianceRepo.getUserAlliance(userId, new AllianceRepository.OnAllianceLoadedListener() {
+            @Override
+            public void onSuccess(Alliance alliance) {
+                SpecialMissionRepository.getInstance().getActiveMission(alliance.getId())
+                        .observeForever(mission -> {
+                            if (mission != null) {
+                                // Proveri da li je lak po težini i normalan po bitnosti
+                                if (task.difficulty == TaskEntity.DIFFICULTY_EASY &&
+                                        task.importance == TaskEntity.IMPORTANCE_NORMAL) {
+
+                                    // Prvi poziv za "lak i normalan" zadatak
+                                    SpecialMissionRepository.getInstance().updateMissionProgress(
+                                            mission.getId(), userId, "easy_task",
+                                            new SpecialMissionRepository.OnProgressUpdatedCallback() {
+                                                @Override
+                                                public void onSuccess(int damageDealt, int remainingBossHp) {
+                                                    Log.d(TAG, "Special mission progress updated (first): " + damageDealt + " damage");
+
+                                                    // Drugi poziv za duplu štetu
+                                                    SpecialMissionRepository.getInstance().updateMissionProgress(
+                                                            mission.getId(), userId, "easy_task",
+                                                            new SpecialMissionRepository.OnProgressUpdatedCallback() {
+                                                                @Override
+                                                                public void onSuccess(int damageDealt2, int remainingBossHp2) {
+                                                                    Log.d(TAG, "Special mission progress updated (second): " + damageDealt2 + " damage");
+                                                                }
+
+                                                                @Override
+                                                                public void onError(String error) {
+                                                                    Log.e(TAG, "Special mission update failed (second): " + error);
+                                                                }
+                                                            }
+                                                    );
+                                                }
+
+                                                @Override
+                                                public void onError(String error) {
+                                                    Log.e(TAG, "Special mission update failed (first): " + error);
+                                                }
+                                            }
+                                    );
+                                    return;
+                                }
+
+                                // Normalna logika za ostale zadatke
+                                String actionType;
+                                if (task.difficulty == TaskEntity.DIFFICULTY_VERY_EASY ||
+                                        task.difficulty == TaskEntity.DIFFICULTY_EASY) {
+                                    actionType = "easy_task";
+                                } else {
+                                    actionType = "hard_task";
+                                }
+
+                                SpecialMissionRepository.getInstance().updateMissionProgress(
+                                        mission.getId(), userId, actionType,
+                                        new SpecialMissionRepository.OnProgressUpdatedCallback() {
+                                            @Override
+                                            public void onSuccess(int damageDealt, int remainingBossHp) {
+                                                Log.d(TAG, "Special mission progress updated: " + damageDealt + " damage");
+                                            }
+
+                                            @Override
+                                            public void onError(String error) {
+                                                Log.e(TAG, "Special mission update failed: " + error);
+                                            }
+                                        }
+                                );
+                            }
+                        });
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.d(TAG, "No alliance found for user: " + error);
+            }
+
+            @Override
+            public void onNotInAlliance() {
+                Log.d(TAG, "User not in alliance, skipping special mission update");
+            }
+        });
+    }
+
+    private void checkAndUpdateSpecialMissionForFailedTask(String userId) {
+        AllianceRepository allianceRepo = new AllianceRepository();
+        allianceRepo.getUserAlliance(userId, new AllianceRepository.OnAllianceLoadedListener() {
+            @Override
+            public void onSuccess(Alliance alliance) {
+                SpecialMissionRepository.getInstance().getActiveMission(alliance.getId())
+                        .observeForever(mission -> {
+                            if (mission != null) {
+                                SpecialMissionRepository.getInstance().updateMissionProgress(
+                                        mission.getId(), userId, "task_failed",
+                                        new SpecialMissionRepository.OnProgressUpdatedCallback() {
+                                            @Override
+                                            public void onSuccess(int damageDealt, int remainingBossHp) {
+                                                Log.d(TAG, "Special mission updated for failed task (no damage)");
+                                            }
+
+                                            @Override
+                                            public void onError(String error) {
+                                                Log.e(TAG, "Special mission update failed for failed task: " + error);
+                                            }
+                                        }
+                                );
+                            }
+                        });
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.d(TAG, "No alliance found for failed task update: " + error);
+            }
+
+            @Override
+            public void onNotInAlliance() {
+                Log.d(TAG, "User not in alliance, skipping failed task update");
             }
         });
     }

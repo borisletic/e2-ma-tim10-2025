@@ -26,6 +26,10 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import java.util.ArrayList;
 import java.util.List;
 import android.app.AlertDialog;
+import com.example.ma2025.data.repositories.AllianceRepository;
+import com.example.ma2025.data.repositories.SpecialMissionRepository;
+import com.example.ma2025.data.models.Alliance;
+
 
 public class EquipmentFragment extends Fragment implements
         EquipmentAdapter.OnEquipmentActionListener,
@@ -344,6 +348,49 @@ public class EquipmentFragment extends Fragment implements
         }
     }
 
+    private void updateSpecialMissionForPurchase(String userId) {
+        AllianceRepository allianceRepo = new AllianceRepository();
+        allianceRepo.getUserAlliance(userId, new AllianceRepository.OnAllianceLoadedListener() {
+            @Override
+            public void onSuccess(Alliance alliance) {
+                SpecialMissionRepository.getInstance().getActiveMission(alliance.getId())
+                        .observe(getViewLifecycleOwner(), mission -> { // ← Zameniti observeForever sa observe
+                            if (mission != null) {
+                                SpecialMissionRepository.getInstance().updateMissionProgress(
+                                        mission.getId(), userId, "store_visit",
+                                        new SpecialMissionRepository.OnProgressUpdatedCallback() {
+                                            @Override
+                                            public void onSuccess(int damageDealt, int remainingBossHp) {
+                                                if (damageDealt > 0) {
+                                                    Log.d(TAG, "Special mission updated: " + damageDealt + " damage dealt");
+                                                    Toast.makeText(getContext(),
+                                                            "Kupovina je nanela " + damageDealt + " štete bosu specijalne misije!",
+                                                            Toast.LENGTH_SHORT).show();
+                                                }
+                                            }
+
+                                            @Override
+                                            public void onError(String error) {
+                                                Log.e(TAG, "Special mission update failed: " + error);
+                                            }
+                                        }
+                                );
+                            }
+                        });
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.d(TAG, "No alliance found for purchase update: " + error);
+            }
+
+            @Override
+            public void onNotInAlliance() {
+                Log.d(TAG, "User not in alliance, skipping special mission update for purchase");
+            }
+        });
+    }
+
     // Interface implementations
     @Override
     public void onActivateEquipment(Equipment equipment) {
@@ -406,6 +453,9 @@ public class EquipmentFragment extends Fragment implements
 
                             // Ažuriraj novčiće u Firebase
                             updateUserCoins();
+
+                            // NOVO: Ažuriraj specijalnu misiju
+                            updateSpecialMissionForPurchase(userId);
 
                             Toast.makeText(getContext(),
                                     equipment.getName() + " uspešno kupljeno!",

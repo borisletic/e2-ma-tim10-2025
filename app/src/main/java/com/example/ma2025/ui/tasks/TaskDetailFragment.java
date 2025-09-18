@@ -78,7 +78,6 @@ public class TaskDetailFragment extends Fragment {
 
         initViews(view);
         setupViewModels();
-        setupToolbar();
         setupActionButtons();
         observeData();
         loadTaskDetails();
@@ -130,17 +129,6 @@ public class TaskDetailFragment extends Fragment {
     private void setupViewModels() {
         taskViewModel = new ViewModelProvider(this).get(TaskListViewModel.class);
         createTaskViewModel = new ViewModelProvider(this).get(CreateTaskViewModel.class);
-    }
-
-    private void setupToolbar() {
-        toolbar.setNavigationIcon(R.drawable.ic_arrow_back);
-        toolbar.setNavigationOnClickListener(v -> {
-            if (getParentFragmentManager().getBackStackEntryCount() > 0) {
-                getParentFragmentManager().popBackStack();
-            } else {
-                requireActivity().onBackPressed();
-            }
-        });
     }
 
     private void setupActionButtons() {
@@ -270,7 +258,6 @@ public class TaskDetailFragment extends Fragment {
     private void displayTaskDetails(TaskEntity task) {
         // Basic info
         tvTaskTitle.setText(task.title);
-        toolbar.setTitle(task.title);
 
         // Description
         if (task.description != null && !task.description.trim().isEmpty()) {
@@ -415,6 +402,19 @@ public class TaskDetailFragment extends Fragment {
         btnDelete.setVisibility(View.GONE);
 
         int effectiveStatus = task.getEffectiveStatus();
+
+        if (effectiveStatus == TaskEntity.STATUS_COMPLETED ||
+                effectiveStatus == TaskEntity.STATUS_CANCELED) {
+
+            cardActionButtons.setVisibility(View.GONE);
+            return; // Izađi iz metode
+        }
+
+        // Prikaži sekciju za aktivne zadatke
+        cardActionButtons.setVisibility(View.VISIBLE);
+
+        // Hide all buttons initially
+        btnComplete.setVisibility(View.GONE);
 
         switch (effectiveStatus) {
             case TaskEntity.STATUS_ACTIVE:

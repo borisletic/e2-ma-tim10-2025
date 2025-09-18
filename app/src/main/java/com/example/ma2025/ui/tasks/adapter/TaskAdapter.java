@@ -1,4 +1,4 @@
-package com.example.ma2025.ui.tasks;
+package com.example.ma2025.ui.tasks.adapter;
 
 import android.content.Context;
 import android.view.LayoutInflater;

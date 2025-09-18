@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.ma2025.R;
 import com.example.ma2025.data.database.entities.CategoryEntity;
 import com.example.ma2025.data.repositories.CategoryRepository;
+import com.example.ma2025.ui.categories.adapter.ColorPickerAdapter;
 import com.example.ma2025.viewmodels.CreateTaskViewModel;
 
 public class EditCategoryDialogFragment extends DialogFragment implements ColorPickerAdapter.OnColorSelectedListener {

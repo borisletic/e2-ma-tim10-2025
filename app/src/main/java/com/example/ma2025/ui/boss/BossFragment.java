@@ -22,8 +22,11 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.example.ma2025.MainActivity;
 import com.example.ma2025.R;
+import com.example.ma2025.data.models.Alliance;
 import com.example.ma2025.data.models.Equipment;
 import com.example.ma2025.data.models.User;
+import com.example.ma2025.data.repositories.AllianceRepository;
+import com.example.ma2025.data.repositories.SpecialMissionRepository;
 import com.example.ma2025.utils.BossAnimationManager;
 import com.example.ma2025.utils.Constants;
 import com.example.ma2025.utils.GameLogicUtils;
@@ -429,11 +432,62 @@ public class BossFragment extends Fragment {
             saveEquipmentReward(rewardEquipment);
         }
 
-        // Prikaži kovčeg umesto teksta
         showTreasureChest(partialCoinsReward, rewardEquipment);
 
         Log.d(TAG, String.format("Partial victory: %d coins (was %d), %.1f%% equipment chance",
                 partialCoinsReward, fullCoinsReward, partialEquipmentChance * 100));
+    }
+
+    private void updateSpecialMissionForSuccessfulAttack() {
+        String userId = FirebaseAuth.getInstance().getCurrentUser() != null ?
+                FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
+
+        if (userId == null) return;
+
+        AllianceRepository allianceRepo = new AllianceRepository();
+        allianceRepo.getUserAlliance(userId, new AllianceRepository.OnAllianceLoadedListener() {
+            @Override
+            public void onSuccess(Alliance alliance) {
+                SpecialMissionRepository.getInstance().getActiveMission(alliance.getId())
+                        .observe(getViewLifecycleOwner(), mission -> {
+                            if (mission != null) {
+                                SpecialMissionRepository.getInstance().updateMissionProgress(
+                                        mission.getId(), userId, "successful_attack",
+                                        new SpecialMissionRepository.OnProgressUpdatedCallback() {
+                                            @Override
+                                            public void onSuccess(int damageDealt, int remainingBossHp) {
+                                                if (damageDealt > 0) {
+                                                    Log.d(TAG, "Special mission updated: " + damageDealt + " damage dealt from successful attack");
+
+                                                    // Dodaj vizuelni feedback
+                                                    if (getContext() != null) {
+                                                        Toast.makeText(getContext(),
+                                                                "Uspešan napad je naneo " + damageDealt + " štete specijalnom bosu!",
+                                                                Toast.LENGTH_SHORT).show();
+                                                    }
+                                                }
+                                            }
+
+                                            @Override
+                                            public void onError(String error) {
+                                                Log.e(TAG, "Special mission update failed: " + error);
+                                            }
+                                        }
+                                );
+                            }
+                        });
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.d(TAG, "No alliance found for successful attack update: " + error);
+            }
+
+            @Override
+            public void onNotInAlliance() {
+                Log.d(TAG, "User not in alliance, skipping special mission update for successful attack");
+            }
+        });
     }
 
     private void performAttack() {
@@ -471,6 +525,9 @@ public class BossFragment extends Fragment {
 
         int newHp = Math.max(0, currentHp - damage);
         bossViewModel.updateBossHp(newHp);
+
+        // Ažuriraj specijalnu misiju za uspešan napad
+        updateSpecialMissionForSuccessfulAttack();
 
         if (newHp <= 0) {
             tvBattleMessage.setText("POBEDA! Porazio si " + getBossName(bossViewModel.getUserLevel().getValue()) + "!");

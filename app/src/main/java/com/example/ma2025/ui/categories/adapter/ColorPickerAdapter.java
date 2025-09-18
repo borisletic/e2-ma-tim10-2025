@@ -1,4 +1,4 @@
-package com.example.ma2025.ui.categories;
+package com.example.ma2025.ui.categories.adapter;
 
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -6,7 +6,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.ma2025.R;

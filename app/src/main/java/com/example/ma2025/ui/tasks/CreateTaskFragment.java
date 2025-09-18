@@ -72,11 +72,8 @@ public class CreateTaskFragment extends Fragment {
     };
 
     private String[] intervalArray = {"1", "2", "3", "4", "5", "6", "7"};
-    private String[] unitArray = {"Dan", "Nedelja"};
 
-    public static CreateTaskFragment newInstance() {
-        return new CreateTaskFragment();
-    }
+    private String[] unitArray = {"dan", "nedelja"};
 
     public static CreateTaskFragment newInstanceForEdit(long taskId) {
         CreateTaskFragment fragment = new CreateTaskFragment();
@@ -109,7 +106,6 @@ public class CreateTaskFragment extends Fragment {
         setupListeners();
         observeData();
 
-        // Load task for editing if in edit mode
         if (isEditMode) {
             loadTaskForEditing();
         }
@@ -159,7 +155,7 @@ public class CreateTaskFragment extends Fragment {
 
         // Update UI based on mode
         if (isEditMode) {
-            btnCreateTask.setText("Sačuvaj izmene");
+            btnCreateTask.setText("Sačuvaj");
         } else {
             btnCreateTask.setText("Kreiraj");
             // Initially hide repeating options for new tasks
@@ -220,6 +216,8 @@ public class CreateTaskFragment extends Fragment {
                 android.R.layout.simple_spinner_item, unitArray);
         unitAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spRepeatUnit.setAdapter(unitAdapter);
+
+        unitAdapter.notifyDataSetChanged();
     }
 
     private void setupListeners() {
@@ -283,10 +281,6 @@ public class CreateTaskFragment extends Fragment {
             if (categoryList != null) {
                 this.categories = categoryList;
                 setupCategorySpinner();
-                // Set category selection for edit mode
-                if (isEditMode) {
-                    populateCategorySelection();
-                }
             }
         });
 
@@ -394,6 +388,7 @@ public class CreateTaskFragment extends Fragment {
 
         // Update XP preview
         updateXpPreview();
+        populateCategorySelection();
     }
 
     private void populateCategorySelection() {

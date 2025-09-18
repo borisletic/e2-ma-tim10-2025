@@ -13,25 +13,6 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- AppBar kao Card -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp">
-
-            <com.google.android.material.appbar.MaterialToolbar
-                android:id="@+id/toolbar"
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:background="@color/primary_color"
-                app:titleTextColor="@color/white"
-                app:navigationIcon="@drawable/ic_arrow_back"
-                app:navigationIconTint="@color/white" />
-
-        </androidx.cardview.widget.CardView>
-
         <!-- Overdue Warning -->
         <LinearLayout
             android:id="@+id/ll_overdue_warning"
@@ -498,7 +479,7 @@
                         android:layout_height="56dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="8dp"
-                        android:text="Uredi"
+                        android:text="Izmeni"
                         android:textColor="@color/text_secondary"
                         app:strokeColor="@color/text_secondary" />
 

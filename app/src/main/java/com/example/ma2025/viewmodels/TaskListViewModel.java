@@ -49,23 +49,9 @@ public class TaskListViewModel extends AndroidViewModel {
         return taskRepository.getAllTasks(userId);
     }
 
-    // Get all tasks (bez userId parametra - koristi trenutnog korisnika)
-    public LiveData<List<TaskEntity>> getAllTasks() {
-        String userId = getCurrentUserId();
-        if (userId != null) {
-            return getAllTasks(userId);
-        }
-        return new MutableLiveData<>(new ArrayList<>());
-    }
-
     // Get task by ID
     public LiveData<TaskEntity> getTaskById(long taskId) {
         return taskRepository.getTaskById(taskId);
-    }
-
-    // Get tasks by status
-    public LiveData<List<TaskEntity>> getTasksByStatus(String userId, int status) {
-        return taskRepository.getTasksByStatus(userId, status);
     }
 
     public void completeTask(long taskId) {
@@ -78,7 +64,7 @@ public class TaskListViewModel extends AndroidViewModel {
                     if (xpEarned > 0) {
                         message = "Zadatak završen! +" + xpEarned + " XP";
                     } else {
-                        message = "Zadatak završen! (Kvota ispunjena - 0 XP)";
+                        message = "Dnevna kvota je ispunjena!";
                     }
                     taskCompletionResult.postValue(new TaskCompletionResult(true, message, xpEarned, newLevel));
                 }
@@ -191,26 +177,6 @@ public class TaskListViewModel extends AndroidViewModel {
 
     // ========== SEARCH AND FILTERING ==========
 
-    public void setSearchQuery(String query) {
-        searchQuery.setValue(query);
-    }
-
-    public LiveData<String> getSearchQuery() {
-        return searchQuery;
-    }
-
-    public void setSortType(int sortType) {
-        this.sortType.setValue(sortType);
-    }
-
-    public LiveData<Integer> getSortType() {
-        return sortType;
-    }
-
-    public LiveData<List<TaskEntity>> getFilteredTasks() {
-        return filteredTasks;
-    }
-
     private void setupFilteredTasks() {
         String userId = getCurrentUserId();
         if (userId != null) {
@@ -308,33 +274,6 @@ public class TaskListViewModel extends AndroidViewModel {
         return baseScore;
     }
 
-    // ========== BATCH OPERATIONS ==========
-
-    public void completeBatchTasks(List<Long> taskIds) {
-        String userId = getCurrentUserId();
-        if (userId != null) {
-            taskRepository.completeBatchTasks(taskIds, userId, new TaskRepository.OnBatchOperationCallback() {
-                @Override
-                public void onSuccess(int completedCount, int totalXpEarned) {
-                    taskCompletionResult.postValue(new TaskCompletionResult(true,
-                            completedCount + " zadataka završeno! +" + totalXpEarned + " XP",
-                            totalXpEarned, 0));
-                }
-
-                @Override
-                public void onError(String error) {
-                    taskCompletionResult.postValue(new TaskCompletionResult(false, error, 0, 0));
-                }
-            });
-        }
-    }
-
-    public void deleteBatchTasks(List<TaskEntity> tasks) {
-        taskRepository.deleteBatchTasks(tasks);
-        taskCompletionResult.postValue(new TaskCompletionResult(true,
-                tasks.size() + " zadataka obrisano", 0, 0));
-    }
-
     // ========== CATEGORIES ==========
 
     public LiveData<List<CategoryEntity>> getAllCategories() {
@@ -343,36 +282,6 @@ public class TaskListViewModel extends AndroidViewModel {
             return categoryRepository.getAllCategories(userId);
         }
         return new MutableLiveData<>(new ArrayList<>());
-    }
-
-    // ========== OVERDUE TASKS ==========
-
-    public LiveData<List<TaskEntity>> getOverdueTasks() {
-        String userId = getCurrentUserId();
-        if (userId != null) {
-            return taskRepository.getOverdueTasksLiveData(userId);
-        }
-        return new MutableLiveData<>(new ArrayList<>());
-    }
-
-    public LiveData<Integer> getOverdueTasksCount() {
-        String userId = getCurrentUserId();
-        if (userId != null) {
-            return taskRepository.getOverdueTasksCount(userId);
-        }
-        MutableLiveData<Integer> count = new MutableLiveData<>();
-        count.setValue(0);
-        return count;
-    }
-
-    // ========== STATISTICS ==========
-
-    public LiveData<TaskStatistics> getTaskStatistics() {
-        String userId = getCurrentUserId();
-        if (userId != null) {
-            return taskRepository.getTaskStatistics(userId);
-        }
-        return new MutableLiveData<>();
     }
 
     // Result class for task completion
