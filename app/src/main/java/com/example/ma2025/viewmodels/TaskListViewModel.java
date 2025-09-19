@@ -64,7 +64,7 @@ public class TaskListViewModel extends AndroidViewModel {
                     if (xpEarned > 0) {
                         message = "Zadatak završen! +" + xpEarned + " XP";
                     } else {
-                        message = "Dnevna kvota je ispunjena!";
+                        message = "Zadatak završen! (Bez XP - kvota dostignuta)";
                     }
                     taskCompletionResult.postValue(new TaskCompletionResult(true, message, xpEarned, newLevel));
                 }

@@ -265,6 +265,7 @@ public class TaskRepository {
                     return;
                 }
 
+                // Proveri samo grace period i status - UKLONI kvotu odavde
                 if (!task.canBeCompleted()) {
                     String errorMessage;
                     if (task.isExpired()) {
@@ -291,29 +292,29 @@ public class TaskRepository {
                     userProgressDao.insertOrUpdateUserProgress(userProgress);
                 }
 
+                // Izračunaj XP - kvota utiče SAMO na XP, ne na završavanje
                 int xpEarned = 0;
-
                 if (task.isEligibleForXp()) {
                     xpEarned = task.calculateXpValue(userProgress.currentLevel);
 
+                    // Kvota sprečava samo XP, ne završavanje zadatka
                     if (!canEarnXpForTask(task, userId)) {
                         xpEarned = 0;
                     }
                 }
 
+                // UVEK završi zadatak (osim ponavljajuće)
                 if (!task.isRepeating) {
                     task.markCompleted();
                     taskDao.updateTask(task);
                 }
 
-                if (!task.canEarnXp()) {
-                    xpEarned = 0;
-                }
-
+                // Zapis o završetku zadatka
                 TaskCompletionEntity completion = new TaskCompletionEntity(taskId, xpEarned);
                 completion.completionDate = DateUtils.getStartOfDay(System.currentTimeMillis());
                 taskCompletionDao.insertTaskCompletion(completion);
 
+                // Ažuriraj korisnikov progres samo ako je dobio XP
                 if (xpEarned > 0) {
                     userProgress.addXp(xpEarned);
 
