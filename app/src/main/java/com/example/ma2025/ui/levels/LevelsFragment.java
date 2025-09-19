@@ -6,6 +6,7 @@ import android.animation.ObjectAnimator;
 import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -200,25 +201,31 @@ public class LevelsFragment extends Fragment {
             taskRepository.addXpToUser(userId, totalXp, new TaskRepository.OnTaskCompletedCallback() {
                 @Override
                 public void onSuccess(int xpEarned, int newLevel) {
-                    if (newLevel > userProgress.currentLevel) {
-                        // Level up!
-                        showLevelUpDialog(userProgress.currentLevel, newLevel,
-                                GameLogicUtils.calculatePpForLevel(newLevel));
-                        Toast.makeText(getContext(),
-                                String.format("LEVEL UP! Nivo %d! +%d XP", newLevel, xpEarned),
-                                Toast.LENGTH_LONG).show();
-                    } else {
-                        Toast.makeText(getContext(),
-                                String.format("Zadatak završen! +%d XP", xpEarned),
-                                Toast.LENGTH_SHORT).show();
-                    }
+                    // ISPRAVKA: Toast na main thread
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (newLevel > userProgress.currentLevel) {
+                            // Level up!
+                            showLevelUpDialog(userProgress.currentLevel, newLevel,
+                                    GameLogicUtils.calculatePpForLevel(newLevel));
+                            Toast.makeText(getContext(),
+                                    String.format("LEVEL UP! Nivo %d! +%d XP", newLevel, xpEarned),
+                                    Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(getContext(),
+                                    String.format("Zadatak završen! +%d XP", xpEarned),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
 
                     // UI će se automatski ažurirati preko LiveData observer-a
                 }
 
                 @Override
                 public void onError(String error) {
-                    Toast.makeText(getContext(), "Greška: " + error, Toast.LENGTH_SHORT).show();
+                    // ISPRAVKA: Toast na main thread
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        Toast.makeText(getContext(), "Greška: " + error, Toast.LENGTH_SHORT).show();
+                    });
                 }
             });
 

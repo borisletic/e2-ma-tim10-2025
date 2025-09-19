@@ -55,7 +55,7 @@ public class ProfileFragment extends Fragment {
     private PreferencesManager preferencesManager;
     private User currentUser;
     private EquipmentAdapter equipmentAdapter;
-    private List<Equipment> activeEquipment = new ArrayList<>();
+    private List<Equipment> activeEquipment;
 
     @Nullable
     @Override
