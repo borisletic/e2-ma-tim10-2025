@@ -290,6 +290,7 @@ public class EquipmentFragment extends Fragment implements
         }
     }
 
+    // ========== ISPRAVKA: SHOP GENERISAN PREMA SPECIFIKACIJI ==========
     private void generateShopItems() {
         try {
             if (shopItems == null) {
@@ -304,40 +305,68 @@ public class EquipmentFragment extends Fragment implements
 
             int bossReward = GameLogicUtils.calculateBossReward(currentUser.getLevel());
 
-            // POTIONS - Dodajte više napitaka
+            // ========== NAPICI - JEDINO U PRODAVNICI I NAKON SPECIJALNE MISIJE ==========
+            // (Pojedini napici se takođe mogu dobiti nakon specijalne misije - Student 2 implementira)
+
             Equipment potion1 = Equipment.createPotion("Napitak Snage I", 0.20, 50, false);
             potion1.setPrice(Equipment.calculatePrice(bossReward, 50));
+            potion1.setDescription("Povećava PP za 20% u sledećoj borbi");
             shopItems.add(potion1);
 
             Equipment potion2 = Equipment.createPotion("Napitak Snage II", 0.40, 70, false);
             potion2.setPrice(Equipment.calculatePrice(bossReward, 70));
+            potion2.setDescription("Povećava PP za 40% u sledećoj borbi");
             shopItems.add(potion2);
 
             Equipment potion3 = Equipment.createPotion("Eliksir Snage I", 0.05, 200, true);
             potion3.setPrice(Equipment.calculatePrice(bossReward, 200));
+            potion3.setDescription("Trajno povećava PP za 5%");
             shopItems.add(potion3);
 
             Equipment potion4 = Equipment.createPotion("Eliksir Snage II", 0.10, 1000, true);
             potion4.setPrice(Equipment.calculatePrice(bossReward, 1000));
+            potion4.setDescription("Trajno povećava PP za 10%");
             shopItems.add(potion4);
 
-            // CLOTHING - Dodajte više odeće
+            // ========== ODEĆA - U PRODAVNICI I NAKON BORBE SA BOSOM ==========
+            // (Ista odeća se može i kupiti i dobiti kao nagrada od bosa)
+
             Equipment gloves = Equipment.createClothing("Rukavice Snage", Constants.EFFECT_PP_BOOST, 0.10, 60);
             gloves.setPrice(Equipment.calculatePrice(bossReward, 60));
+            gloves.setDescription("Povećava PP za 10% (traje 2 borbe)");
             shopItems.add(gloves);
 
             Equipment shield = Equipment.createClothing("Štit Preciznosti", Constants.EFFECT_ATTACK_BOOST, 0.10, 60);
             shield.setPrice(Equipment.calculatePrice(bossReward, 60));
+            shield.setDescription("Povećava šansu uspešnog napada za 10% (traje 2 borbe)");
             shopItems.add(shield);
 
             Equipment boots = Equipment.createClothing("Čizme Brzine", "extra_attack", 0.40, 80);
             boots.setPrice(Equipment.calculatePrice(bossReward, 80));
+            boots.setDescription("40% šanse za dodatni napad (traje 2 borbe)");
             shopItems.add(boots);
 
             // Dodatna odeća
             Equipment armor = Equipment.createClothing("Oklop Zaštite", Constants.EFFECT_PP_BOOST, 0.15, 100);
             armor.setPrice(Equipment.calculatePrice(bossReward, 100));
+            armor.setDescription("Povećava PP za 15% (traje 2 borbe)");
             shopItems.add(armor);
+
+            // ========== ORUŽJE - OBAVEŠTENЈE DA SE NE PRODAJE ==========
+            // Prema specifikaciji: "oružje moguće jedino dobiti nakon borbe"
+            // Dodaj informativnu karticu umesto prodaje oružja
+
+            Equipment weaponInfo = new Equipment();
+            weaponInfo.setName("ℹ️ Oružje");
+            weaponInfo.setDescription("Oružje se može dobiti JEDINO nakon pobede nad bosom!\n\n" +
+                    "• Mač - trajno povećava PP za 5%\n" +
+                    "• Luk i strela - povećava dobijene novčiće za 5%\n\n" +
+                    "Oružje se može unaprediti za 60% boss nagrade.");
+            // ISPRAVKA: Koristi postojeću konstantu ili dodeli direktno
+            weaponInfo.setType(Constants.EQUIPMENT_TYPE_POTION); // Privremeno koristimo postojeći tip
+            weaponInfo.setPrice(0);
+            // weaponInfo.setPurchasable(false); // Ukloniti ako metoda ne postoji
+            shopItems.add(weaponInfo);
 
             if (shopAdapter != null) {
                 shopAdapter.notifyDataSetChanged();
@@ -434,6 +463,12 @@ public class EquipmentFragment extends Fragment implements
                 return;
             }
 
+            // ISPRAVKA: Provera da li je ovo informativna kartica
+            if (equipment.getName().contains("ℹ️")) {
+                Toast.makeText(getContext(), "Ova stavka se ne može kupiti - samo je informativna!", Toast.LENGTH_LONG).show();
+                return;
+            }
+
             if (currentUser.getCoins() >= equipment.getPrice()) {
                 // Oduzmi novčiće
                 currentUser.setCoins(currentUser.getCoins() - equipment.getPrice());
@@ -454,8 +489,10 @@ public class EquipmentFragment extends Fragment implements
                             // Ažuriraj novčiće u Firebase
                             updateUserCoins();
 
-                            // NOVO: Ažuriraj specijalnu misiju
-                            updateSpecialMissionForPurchase(userId);
+                            // ========== ISPRAVKA: Ažuriraj specijalnu misiju samo za napitke ==========
+                            if (equipment.getType() == Constants.EQUIPMENT_TYPE_POTION) {
+                                updateSpecialMissionForPurchase(userId);
+                            }
 
                             Toast.makeText(getContext(),
                                     equipment.getName() + " uspešno kupljeno!",
@@ -511,12 +548,6 @@ public class EquipmentFragment extends Fragment implements
         } catch (Exception e) {
             Log.e(TAG, "Error in updateEquipmentInFirebase", e);
         }
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
     }
 
     @Override
@@ -610,6 +641,7 @@ public class EquipmentFragment extends Fragment implements
         }
     }
 
+    // ========== JAVNA METODA ZA STUDENT 2 - BOSS NAGRADE ==========
     public void saveRewardEquipment(Equipment equipment) {
         try {
             if (mAuth.getCurrentUser() == null || equipment == null) {
@@ -631,6 +663,10 @@ public class EquipmentFragment extends Fragment implements
                         if (binding != null && binding.recyclerViewEquipment.getVisibility() == View.VISIBLE) {
                             loadUserEquipment();
                         }
+
+                        Toast.makeText(getContext(),
+                                "Dobili ste " + equipment.getName() + " kao nagradu!",
+                                Toast.LENGTH_SHORT).show();
                     })
                     .addOnFailureListener(e -> {
                         Log.e(TAG, "Error saving reward equipment", e);
@@ -639,5 +675,11 @@ public class EquipmentFragment extends Fragment implements
         } catch (Exception e) {
             Log.e(TAG, "Exception in saveRewardEquipment", e);
         }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        binding = null;
     }
 }

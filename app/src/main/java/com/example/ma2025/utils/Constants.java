@@ -190,6 +190,8 @@ public class Constants {
     public static final int ANIMATION_DURATION_MEDIUM = 600;
     public static final int ANIMATION_DURATION_LONG = 1000;
 
+    public static final String EQUIPMENT_TYPE_INFO = "info";
+
     // Cache durations (milliseconds)
     public static final long CACHE_DURATION_USER_DATA = 5 * 60 * 1000; // 5 minutes
     public static final long CACHE_DURATION_TASKS = 2 * 60 * 1000; // 2 minutes
