@@ -16,13 +16,17 @@ import com.example.ma2025.data.database.dao.TaskCompletionDao;
 import com.example.ma2025.data.database.dao.DailyStatsDao;
 import com.example.ma2025.data.database.dao.UserProgressDao;
 import com.example.ma2025.data.models.Alliance;
+import com.example.ma2025.utils.Constants;
 import com.example.ma2025.utils.DateUtils;
 import com.example.ma2025.utils.GameLogicUtils;
+import com.example.ma2025.viewmodels.CreateTaskViewModel;
 import com.example.ma2025.viewmodels.TaskListViewModel;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -707,6 +711,23 @@ public class TaskRepository {
         }
     }
 
+    public void updateUserProgress(UserProgressEntity userProgress) {
+        executor.execute(() -> {
+            try {
+                userProgressDao.updateUserProgress(userProgress);
+
+                // Sync to Firebase ako treba
+                syncUserProgressToFirebase(userProgress);
+
+                Log.d(TAG, "UserProgress updated: Level " + userProgress.currentLevel +
+                        ", XP " + userProgress.currentXp);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating user progress", e);
+            }
+        });
+    }
+
     private int calculateCurrentStreak(String userId, long today) {
         int streak = 0;
         long checkDate = today;
@@ -754,7 +775,90 @@ public class TaskRepository {
     }
 
     private void syncUserProgressToFirebase(UserProgressEntity userProgress) {
-        // TODO: Sync user progress to Firebase User document
+        try {
+            Map<String, Object> progressData = new HashMap<>();
+            progressData.put("level", userProgress.currentLevel);
+            progressData.put("xp", userProgress.currentXp);
+            progressData.put("pp", userProgress.totalPp);
+            progressData.put("coins", userProgress.coins);
+            progressData.put("currentStreak", userProgress.currentStreak);
+            progressData.put("longestStreak", userProgress.longestStreak);
+            progressData.put("title", getTitleForLevel(userProgress.currentLevel));
+            progressData.put("updatedAt", System.currentTimeMillis());
+
+            firestore.collection(Constants.COLLECTION_USERS)
+                    .document(userProgress.userId)
+                    .update(progressData)
+                    .addOnSuccessListener(aVoid ->
+                            Log.d(TAG, "UserProgress synced to Firebase"))
+                    .addOnFailureListener(e ->
+                            Log.e(TAG, "Error syncing UserProgress to Firebase", e));
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in syncUserProgressToFirebase", e);
+        }
+    }
+
+    private String getTitleForLevel(int level) {
+        switch (level) {
+            case 0: return "Novajlija";
+            case 1: return "Početnik";
+            case 2: return "Istraživač";
+            case 3: return "Ratnik";
+            case 4: return "Veteran";
+            case 5: return "Majstor";
+            case 6: return "Ekspert";
+            case 7: return "Šampion";
+            case 8: return "Legenda";
+            case 9: return "Mitska Legenda";
+            case 10: return "Besmrtni";
+            default: return "Legenda (Nivo " + level + ")";
+        }
+    }
+
+    public void resetUserProgress(String userId, OnTaskStatusChangeCallback callback) {
+        executor.execute(() -> {
+            try {
+                UserProgressEntity userProgress = new UserProgressEntity(userId);
+                userProgressDao.insertOrUpdateUserProgress(userProgress);
+
+                syncUserProgressToFirebase(userProgress);
+
+                if (callback != null) {
+                    callback.onSuccess("Napredak resetovan");
+                }
+
+                Log.d(TAG, "User progress reset for: " + userId);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error resetting user progress", e);
+                if (callback != null) {
+                    callback.onError("Greška pri resetovanju napretka");
+                }
+            }
+        });
+    }
+
+    public void getCurrentUserLevel(String userId, CreateTaskViewModel.OnUserLevelCallback callback) {
+        executor.execute(() -> {
+            try {
+                UserProgressEntity userProgress = getUserProgressSync(userId);
+
+                if (callback != null) {
+                    callback.onUserLevel(userProgress.currentLevel);
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error getting current user level", e);
+                if (callback != null) {
+                    callback.onUserLevel(0);
+                }
+            }
+        });
+    }
+
+    public interface OnUserLevelCallback {
+        void onUserLevel(int level);
     }
 
     private void deleteTaskFromFirebase(String firebaseId) {
@@ -768,6 +872,20 @@ public class TaskRepository {
     }
 
     public LiveData<UserProgressEntity> getUserProgress(String userId) {
+        // Ensure UserProgress exists
+        executor.execute(() -> {
+            try {
+                UserProgressEntity existing = userProgressDao.getUserProgressSync(userId);
+                if (existing == null) {
+                    Log.d(TAG, "Creating new UserProgress for user: " + userId);
+                    UserProgressEntity newProgress = new UserProgressEntity(userId);
+                    userProgressDao.insertOrUpdateUserProgress(newProgress);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error ensuring user progress exists", e);
+            }
+        });
+
         return userProgressDao.getUserProgress(userId);
     }
 
@@ -777,6 +895,75 @@ public class TaskRepository {
             if (existing == null) {
                 UserProgressEntity newProgress = new UserProgressEntity(userId);
                 userProgressDao.insertOrUpdateUserProgress(newProgress);
+            }
+        });
+    }
+
+    public UserProgressEntity getUserProgressSync(String userId) {
+        try {
+            UserProgressEntity progress = userProgressDao.getUserProgressSync(userId);
+            if (progress == null) {
+                progress = new UserProgressEntity(userId);
+                userProgressDao.insertOrUpdateUserProgress(progress);
+            }
+            return progress;
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting user progress sync", e);
+            return new UserProgressEntity(userId);
+        }
+    }
+
+    private boolean shouldLevelUp(UserProgressEntity userProgress) {
+        try {
+            int requiredXp = GameLogicUtils.calculateXpForLevel(userProgress.currentLevel + 1);
+            return userProgress.currentXp >= requiredXp;
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking level up", e);
+            return false;
+        }
+    }
+
+    public void addXpToUser(String userId, int xpToAdd, OnTaskCompletedCallback callback) {
+        executor.execute(() -> {
+            try {
+                UserProgressEntity userProgress = getUserProgressSync(userId);
+
+                int oldLevel = userProgress.currentLevel;
+                int oldXp = userProgress.currentXp;
+
+                // Add XP
+                userProgress.addXp(xpToAdd);
+
+                // Check for level up
+                boolean leveledUp = false;
+                while (shouldLevelUp(userProgress)) {
+                    int newLevel = userProgress.currentLevel + 1;
+                    int ppGained = GameLogicUtils.calculatePpForLevel(newLevel);
+                    userProgress.levelUp(newLevel, ppGained);
+                    leveledUp = true;
+
+                    Log.d(TAG, String.format("Level up! %d -> %d, PP gained: %d",
+                            oldLevel, newLevel, ppGained));
+                }
+
+                // Save to database
+                userProgressDao.updateUserProgress(userProgress);
+
+                // Sync to Firebase
+                syncUserProgressToFirebase(userProgress);
+
+                if (callback != null) {
+                    callback.onSuccess(xpToAdd, userProgress.currentLevel);
+                }
+
+                Log.d(TAG, String.format("XP added: %d -> %d (+%d), Level: %d",
+                        oldXp, userProgress.currentXp, xpToAdd, userProgress.currentLevel));
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error adding XP to user", e);
+                if (callback != null) {
+                    callback.onError("Greška pri dodavanju XP");
+                }
             }
         });
     }
