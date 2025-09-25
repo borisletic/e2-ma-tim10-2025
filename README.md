@@ -13,5 +13,5 @@ Android aplikacija za svakodnevno praćenje navika i postavljanje ciljeva po ugl
 5. Pokrenuti aplikaciju na emulatoru ili povezanom telefonu (Run ▶)
 
 ## Autori
-Boris Letić
-Maša Mićović
+- Boris Letić
+- Maša Mićović
