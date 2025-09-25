@@ -11,3 +11,7 @@ Android aplikacija za svakodnevno praćenje navika i postavljanje ciljeva po ugl
 3. Otvoriti projekat u Android Studio (File → Open)
 4. Sačekati da se Gradle sinhronizuje
 5. Pokrenuti aplikaciju na emulatoru ili povezanom telefonu (Run ▶)
+
+## Autori
+Boris Letić
+Maša Mićović
