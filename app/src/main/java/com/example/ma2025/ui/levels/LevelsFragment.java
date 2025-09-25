@@ -372,8 +372,8 @@ public class LevelsFragment extends Fragment {
             // TaskRepository će automatski kreirati UserProgressEntity
             // kada se pozove getUserProgress ako ne postoji
 
-            // Čekaj kratko pa učitaj ponovo
-            new Handler().postDelayed(() -> loadTaskProgress(userId), 500);
+            // Direktan poziv - bez delay-a
+            loadTaskProgress(userId);
 
         } catch (Exception e) {
             Log.e(TAG, "Error creating default task progress", e);

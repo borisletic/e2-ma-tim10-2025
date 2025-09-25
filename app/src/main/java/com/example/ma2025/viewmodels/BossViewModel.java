@@ -66,7 +66,6 @@ public class BossViewModel extends AndroidViewModel {
         userBasePp.setValue(0);
         equipmentPpBonus.setValue(0);
         totalPp.setValue(0);
-        userLevel.setValue(0);
         bossMaxHp.setValue(200);
         bossCurrentHp.setValue(200);
         activeEquipment.setValue(new ArrayList<>());
@@ -109,7 +108,7 @@ public class BossViewModel extends AndroidViewModel {
                             Log.d(TAG, "========================");
 
                             userBasePp.setValue(basePp);
-                            userLevel.setValue(1);
+                            userLevel.setValue(level); // ← KORISTITE level OVDE, NE 1
 
                             checkUndefeatedBosses(level);
                             calculateTotalPp();
@@ -138,7 +137,6 @@ public class BossViewModel extends AndroidViewModel {
                 undefeatedBossLevels.setValue(undefeatedLevels);
                 currentBossIndex.setValue(0);
                 currentBossLevel.setValue(undefeatedLevels.get(0));
-                loadBossForLevel(undefeatedLevels.get(0));
             } else {
                 loadOrCreateBossState(currentLevel);
             }
@@ -164,43 +162,51 @@ public class BossViewModel extends AndroidViewModel {
 
     private void loadBossForLevel(int level) {
         String userId = getCurrentUserId();
-        db.collection("boss_states")
-                .document(userId + "_level_" + level)
-                .get()
-                .addOnSuccessListener(document -> {
-                    int maxHp = calculateMaxHp(level);
-                    int currentHp = document.exists() ?
-                            document.getLong("currentHp").intValue() : maxHp;
+        int maxHp = calculateMaxHp(level);
 
-                    bossMaxHp.setValue(maxHp);
-                    bossCurrentHp.setValue(currentHp);
-                    attacksRemaining.setValue(5);
-                });
+        // UVEK resetuj na max HP
+        bossMaxHp.setValue(maxHp);
+        bossCurrentHp.setValue(maxHp);
+        attacksRemaining.setValue(5);
+
+        // Sačuvaj novo stanje
+        saveBossState(level, maxHp, maxHp, 5);
     }
 
     public void markCurrentBossDefeated() {
         Integer level = currentBossLevel.getValue();
         if (level == null) return;
 
-        // Označava bosa kao poraženog u bazi
         saveBossAsDefeated(level);
 
-        // Prelazi na sledećeg bosa
-        List<Integer> levels = undefeatedBossLevels.getValue();
-        Integer index = currentBossIndex.getValue();
+        Log.d(TAG, "Boss at level " + level + " marked as defeated");
+    }
 
-        if (levels != null && index != null) {
-            levels.remove(index.intValue());
+    public void moveToNextUndefeatedBoss() {
+        List<Integer> undefeated = undefeatedBossLevels.getValue();
+        Integer currentIndex = currentBossIndex.getValue();
 
-            if (levels.isEmpty()) {
-                // Svi bosovi poraženi
-                statusMessage.setValue("Svi bosovi poraženi!");
-            } else {
-                // Učitaj sledećeg bosa
-                currentBossLevel.setValue(levels.get(0));
-                loadBossForLevel(levels.get(0));
+        if (undefeated == null || currentIndex == null) return;
+
+        // Ukloni trenutno poraženog iz liste
+        List<Integer> updatedList = new ArrayList<>(undefeated);
+        if (currentIndex < updatedList.size()) {
+            updatedList.remove((int) currentIndex);
+            undefeatedBossLevels.setValue(updatedList);
+        }
+
+        // Proveri da li ima još neporaženih
+        if (!updatedList.isEmpty()) {
+            currentBossIndex.setValue(0); // Reset na prvog iz nove liste
+            currentBossLevel.setValue(updatedList.get(0));
+            loadBossForLevel(updatedList.get(0));
+        } else {
+            // Svi poraženi, učitaj bosa trenutnog nivoa
+            Integer level = userLevel.getValue();
+            if (level != null) {
+                currentBossLevel.setValue(level);
+                loadOrCreateBossState(level);
             }
-            undefeatedBossLevels.setValue(levels);
         }
     }
 
@@ -369,6 +375,7 @@ public class BossViewModel extends AndroidViewModel {
         bossState.put("level", level);
         bossState.put("lastUpdate", System.currentTimeMillis());
         bossState.put("attacksRemaining", attacks);
+        bossState.put("isDefeated", false);
 
         db.collection("boss_states")
                 .document(userId + "_level_" + level)
@@ -602,6 +609,8 @@ public class BossViewModel extends AndroidViewModel {
     public LiveData<Integer> getAttacksRemaining() {
         return attacksRemaining;
     }
+
+    public LiveData<Integer> getCurrentBossIndex() { return currentBossIndex; }
 
     // Helper
     private String getCurrentUserId() {

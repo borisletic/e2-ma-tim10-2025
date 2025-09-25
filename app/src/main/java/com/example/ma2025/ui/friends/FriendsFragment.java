@@ -202,11 +202,17 @@ public class FriendsFragment extends Fragment implements
         String userId = getCurrentUserId();
         if (userId == null) return;
 
+        // Proveri da li je binding još uvek validan
+        if (binding == null) return;
+
         binding.progressBarAlliance.setVisibility(View.VISIBLE);
 
         allianceRepository.getUserAlliance(userId, new AllianceRepository.OnAllianceLoadedListener() {
             @Override
             public void onSuccess(Alliance alliance) {
+                // Proveri da li je Fragment još aktivan
+                if (binding == null || !isAdded()) return;
+
                 binding.progressBarAlliance.setVisibility(View.GONE);
                 currentAlliance = alliance;
                 displayAllianceInfo(alliance);
@@ -215,6 +221,9 @@ public class FriendsFragment extends Fragment implements
 
             @Override
             public void onError(String error) {
+                // Proveri da li je Fragment još aktivan
+                if (binding == null || !isAdded()) return;
+
                 binding.progressBarAlliance.setVisibility(View.GONE);
                 Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
                 showNoAllianceState();
@@ -222,6 +231,9 @@ public class FriendsFragment extends Fragment implements
 
             @Override
             public void onNotInAlliance() {
+                // Proveri da li je Fragment još aktivan
+                if (binding == null || !isAdded()) return;
+
                 binding.progressBarAlliance.setVisibility(View.GONE);
                 currentAlliance = null;
                 showNoAllianceState();

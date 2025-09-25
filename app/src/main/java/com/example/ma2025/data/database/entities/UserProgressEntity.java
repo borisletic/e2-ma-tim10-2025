@@ -38,9 +38,9 @@ public class UserProgressEntity {
 
     public UserProgressEntity() {
         this.userId = ""; // ✅ DODATO: Default vrednost umesto null
-        this.currentLevel = 0;
+        this.currentLevel = 1;
         this.currentXp = 0;
-        this.totalPp = 0;
+        this.totalPp = 40;
         this.coins = 0;
         this.currentStreak = 0;
         this.longestStreak = 0;

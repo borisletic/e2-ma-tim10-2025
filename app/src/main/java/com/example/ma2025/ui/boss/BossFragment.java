@@ -173,8 +173,6 @@ public class BossFragment extends Fragment {
                 tvPlayerTitle.setText("TVOJA SNAGA (Nivo " + level + ")");
 
                 if (level <= 0) {
-                    // Sakrij boss UI potpuno
-                    /*
                     btnAttack.setVisibility(View.GONE);
                     ivBossSprite.setVisibility(View.GONE);
                     tvBossLevel.setVisibility(View.GONE);
@@ -182,7 +180,7 @@ public class BossFragment extends Fragment {
                     tvBossHp.setVisibility(View.GONE);
                     pbBossHp.setVisibility(View.GONE);
                     tvBattleMessage.setText("Rešavajte zadatke da dostignete nivo 1 i otključate borbu sa prvim bosom!");
-                     */
+
                 } else {
                     // Prikaži boss UI
                     btnAttack.setVisibility(View.VISIBLE);
@@ -198,6 +196,7 @@ public class BossFragment extends Fragment {
         });
 
         bossViewModel.getBossCurrentHp().observe(getViewLifecycleOwner(), currentHp -> {
+            Log.d(TAG, "Observer: Boss HP changed to: " + currentHp);
             if (currentHp != null && bossViewModel.getBossMaxHp().getValue() != null) {
                 updateBossHpDisplay(currentHp, bossViewModel.getBossMaxHp().getValue());
             }
@@ -237,8 +236,14 @@ public class BossFragment extends Fragment {
             }
         });
 
+        bossViewModel.getUndefeatedBossLevels().observe(getViewLifecycleOwner(), undefeatedList -> {
+            Integer currentIndex = bossViewModel.getCurrentBossIndex().getValue();
+            if (undefeatedList != null && !undefeatedList.isEmpty() && currentIndex != null) {
+                tvBattleMessage.setText("Neporaženi bosevi: " + (currentIndex + 1) + "/" + undefeatedList.size());
+            }
+        });
+
         bossViewModel.getAttackSuccessRate().observe(getViewLifecycleOwner(), successRate -> {
-            Log.d(TAG, "Attack success rate observer triggered: " + successRate + "%");
             if (successRate != null) {
                 tvAttackSuccessRate.setText("Šansa napada: " + successRate + "%");
             }
@@ -263,8 +268,6 @@ public class BossFragment extends Fragment {
             ivBossSprite.setAlpha(1.0f);
             updateRewardsDisplay(currentBossLevel);
         }
-
-        Log.d(TAG, "Boss display updated for level: " + currentBossLevel);
     }
 
     private String getBossName(int level) {
@@ -311,15 +314,13 @@ public class BossFragment extends Fragment {
 
         if (basePp != null && bonusPp != null) {
             int total = basePp + bonusPp;
-            tvPlayerPp.setText("UKUPNO: " + total + " PP");
         }
     }
 
     private void updatePlayerPpDisplay(int totalPp) {
+        tvPlayerPp.setText("Ukupno:" + totalPp + " PP");
         int progress = Math.min(100, (totalPp * 100) / 500);
         pbPlayerPp.setProgress(progress);
-
-        Log.d(TAG, "Player PP display updated: " + totalPp);
     }
 
     private void updateEquipmentDisplay(List<Equipment> equipmentList) {
@@ -546,32 +547,35 @@ public class BossFragment extends Fragment {
     }
 
     private void handleBossDefeat() {
+        // Sačuvaj nivo poraženog bosa PRE nego što se pomeriš na sledeći
+        Integer defeatedLevel = bossViewModel.getCurrentBossLevel().getValue();
+
+        // Označi trenutnog bosa kao poraženog
         bossViewModel.markCurrentBossDefeated();
 
-        List<Integer> undefeatedLevels = bossViewModel.getUndefeatedBossLevels().getValue();
+        // Izračunaj nagrade za poraženog bosa
+        int coinsReward = calculateCoinsReward(defeatedLevel != null ? defeatedLevel : 1);
+        Equipment rewardEquipment = GameLogicUtils.generateRandomEquipmentReward(
+                defeatedLevel != null ? defeatedLevel : 1, 0.20);
 
-        if (undefeatedLevels != null && !undefeatedLevels.isEmpty()) {
-            tvBattleMessage.setText("Boss poražen! Priprema se sledeći boss...");
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                bossViewModel.resetAttacks();
-                btnAttack.setEnabled(true);
-                btnAttack.setAlpha(1.0f);
-            }, 2000);
-            return;
-        }
-
-        Integer userLevel = bossViewModel.getUserLevel().getValue();
-        if (userLevel == null) return;
-
-        int coinsReward = calculateCoinsReward(userLevel);
-        Equipment rewardEquipment = GameLogicUtils.generateRandomEquipmentReward(userLevel, 0.20);
-
+        // Dodaj nagrade u bazu
         updateUserCoins(coinsReward);
         if (rewardEquipment != null) {
             saveEquipmentReward(rewardEquipment);
         }
 
+        // Prikaži kovčeg sa nagradama
         showTreasureChest(coinsReward, rewardEquipment);
+
+        // Nakon 3 sekunde, pređi na sledećeg bosa
+        tvBattleMessage.setText("Boss poražen! Priprema se sledeći boss...");
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            bossViewModel.moveToNextUndefeatedBoss();
+            bossViewModel.resetAttacks();
+            btnAttack.setEnabled(true);
+            btnAttack.setAlpha(1.0f);
+            tvBattleMessage.setText("Spreman za borbu protiv novog bosa!");
+        }, 3000);
     }
 
     // ========== TREASURE CHEST LOGIC ==========

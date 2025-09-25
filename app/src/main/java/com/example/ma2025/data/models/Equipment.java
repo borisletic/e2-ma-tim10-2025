@@ -24,8 +24,6 @@ public class Equipment {
     private double baseEffectValue;
     private int timesUpgraded;
 
-    private boolean purchasable = true;
-
     // Constructors
     public Equipment() {
         this.purchaseTime = System.currentTimeMillis();
@@ -304,16 +302,5 @@ public class Equipment {
 
     public long getActivationTime() { return activationTime; }
     public void setActivationTime(long activationTime) { this.activationTime = activationTime; }
-
-    public String getIconName() { return iconName; }
-    public void setIconName(String iconName) { this.iconName = iconName; }
-
-    public boolean isPurchasable() {
-        return purchasable;
-    }
-
-    public void setPurchasable(boolean purchasable) {
-        this.purchasable = purchasable;
-    }
 
 }

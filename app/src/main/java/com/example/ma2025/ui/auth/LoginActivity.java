@@ -74,20 +74,15 @@ public class LoginActivity extends AppCompatActivity {
         // Reload user to get latest email verification status
         user.reload().addOnCompleteListener(reloadTask -> {
             if (reloadTask.isSuccessful()) {
-                if (user.isEmailVerified()) {
-                    // Email is verified, mark as activated and proceed
-                    activationChecker.markAccountActivated(user.getUid());
-                    proceedWithLogin(user);
-                } else {
-                    // Email not verified, check if still within timeout period
-                    checkActivationTimeout(user);
-                }
+                // **Privremeno preskačemo proveru verifikacije**
+                proceedWithLogin(user);
             } else {
                 showLoading(false);
                 Toast.makeText(this, "Greška pri proveri naloga", Toast.LENGTH_SHORT).show();
             }
         });
     }
+
 
     private void checkActivationTimeout(FirebaseUser user) {
         activationChecker.checkActivationStatus(user.getUid(),
