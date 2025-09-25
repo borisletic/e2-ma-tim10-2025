@@ -177,6 +177,34 @@ public class SpecialMissionRepository {
                 .addOnFailureListener(e -> callback.onError(e.getMessage()));
     }
 
+    public void getActiveMissionOnce(String allianceId, OnMissionLoadedCallback callback) {
+        db.collection("special_missions")
+                .whereEqualTo("allianceId", allianceId)
+                .whereEqualTo("isActive", true)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    if (!querySnapshot.isEmpty()) {
+                        SpecialMission mission = querySnapshot.getDocuments()
+                                .get(0)
+                                .toObject(SpecialMission.class);
+                        callback.onSuccess(mission);
+                    } else {
+                        callback.onSuccess(null);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading mission", e);
+                    callback.onError(e.getMessage());
+                });
+    }
+
+    // Callback interface
+    public interface OnMissionLoadedCallback {
+        void onSuccess(SpecialMission mission);
+        void onError(String error);
+    }
+
     private int updateUserProgress(MissionProgress progress, String actionType, String date) {
         int initialDamage = progress.getTotalDamageDealt();
         boolean actionPerformed = false;

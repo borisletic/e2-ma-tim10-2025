@@ -18,12 +18,14 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.ma2025.MainActivity;
 import com.example.ma2025.R;
 import com.example.ma2025.data.models.Alliance;
 import com.example.ma2025.data.models.Equipment;
+import com.example.ma2025.data.models.SpecialMission;
 import com.example.ma2025.data.models.User;
 import com.example.ma2025.data.repositories.AllianceRepository;
 import com.example.ma2025.data.repositories.SpecialMissionRepository;
@@ -65,6 +67,7 @@ public class BossFragment extends Fragment {
     private TreasureChestAnimator chestAnimator;
     private boolean isChestReadyToOpen = false;
     private boolean isWaitingForShake = false;
+    private boolean isProcessingDefeat = false;
     private int pendingCoinsReward = 0;
     private Equipment pendingEquipmentReward = null;
 
@@ -163,7 +166,6 @@ public class BossFragment extends Fragment {
         tvBossTitle.setText("BOSS");
         tvPlayerTitle.setText("TVOJA SNAGA");
         tvEquipmentTitle.setText("AKTIVNA OPREMA");
-        bossViewModel.calculateAttackSuccessRate();
     }
 
     private void setupObservers() {
@@ -173,8 +175,6 @@ public class BossFragment extends Fragment {
                 tvPlayerTitle.setText("TVOJA SNAGA (Nivo " + level + ")");
 
                 if (level <= 0) {
-                    // Sakrij boss UI potpuno
-                    /*
                     btnAttack.setVisibility(View.GONE);
                     ivBossSprite.setVisibility(View.GONE);
                     tvBossLevel.setVisibility(View.GONE);
@@ -182,7 +182,7 @@ public class BossFragment extends Fragment {
                     tvBossHp.setVisibility(View.GONE);
                     pbBossHp.setVisibility(View.GONE);
                     tvBattleMessage.setText("Rešavajte zadatke da dostignete nivo 1 i otključate borbu sa prvim bosom!");
-                     */
+
                 } else {
                     // Prikaži boss UI
                     btnAttack.setVisibility(View.VISIBLE);
@@ -198,6 +198,7 @@ public class BossFragment extends Fragment {
         });
 
         bossViewModel.getBossCurrentHp().observe(getViewLifecycleOwner(), currentHp -> {
+            Log.d(TAG, "Observer: Boss HP changed to: " + currentHp);
             if (currentHp != null && bossViewModel.getBossMaxHp().getValue() != null) {
                 updateBossHpDisplay(currentHp, bossViewModel.getBossMaxHp().getValue());
             }
@@ -223,7 +224,12 @@ public class BossFragment extends Fragment {
                     btnAttack.setEnabled(false);
                     btnAttack.setAlpha(0.5f);
 
-                    handleBattleEnd();
+                    Integer currentHp = bossViewModel.getBossCurrentHp().getValue();
+                    Integer maxHp = bossViewModel.getBossMaxHp().getValue();
+
+                    if (currentHp != null && maxHp != null && maxHp > 0) {
+                        handleBattleEnd();
+                    }
                 } else {
                     btnAttack.setEnabled(true);
                     btnAttack.setAlpha(1.0f);
@@ -237,8 +243,14 @@ public class BossFragment extends Fragment {
             }
         });
 
+        bossViewModel.getUndefeatedBossLevels().observe(getViewLifecycleOwner(), undefeatedList -> {
+            Integer currentIndex = bossViewModel.getCurrentBossIndex().getValue();
+            if (undefeatedList != null && !undefeatedList.isEmpty() && currentIndex != null) {
+                tvBattleMessage.setText("Neporaženi bosevi: " + (currentIndex + 1) + "/" + undefeatedList.size());
+            }
+        });
+
         bossViewModel.getAttackSuccessRate().observe(getViewLifecycleOwner(), successRate -> {
-            Log.d(TAG, "Attack success rate observer triggered: " + successRate + "%");
             if (successRate != null) {
                 tvAttackSuccessRate.setText("Šansa napada: " + successRate + "%");
             }
@@ -263,8 +275,6 @@ public class BossFragment extends Fragment {
             ivBossSprite.setAlpha(1.0f);
             updateRewardsDisplay(currentBossLevel);
         }
-
-        Log.d(TAG, "Boss display updated for level: " + currentBossLevel);
     }
 
     private String getBossName(int level) {
@@ -311,15 +321,13 @@ public class BossFragment extends Fragment {
 
         if (basePp != null && bonusPp != null) {
             int total = basePp + bonusPp;
-            tvPlayerPp.setText("UKUPNO: " + total + " PP");
         }
     }
 
     private void updatePlayerPpDisplay(int totalPp) {
+        tvPlayerPp.setText("Ukupno:" + totalPp + " PP");
         int progress = Math.min(100, (totalPp * 100) / 500);
         pbPlayerPp.setProgress(progress);
-
-        Log.d(TAG, "Player PP display updated: " + totalPp);
     }
 
     private void updateEquipmentDisplay(List<Equipment> equipmentList) {
@@ -409,6 +417,11 @@ public class BossFragment extends Fragment {
         if (userLevel == null || currentHp == null || maxHp == null) return;
 
         if (currentHp <= 0) {
+            if (isProcessingDefeat) {
+                Log.d(TAG, "Already processing defeat, skipping duplicate call");
+                return;
+            }
+            isProcessingDefeat = true;
             handleBossDefeat();
         } else {
             double hpPercentage = (double) currentHp / maxHp;
@@ -448,44 +461,47 @@ public class BossFragment extends Fragment {
         allianceRepo.getUserAlliance(userId, new AllianceRepository.OnAllianceLoadedListener() {
             @Override
             public void onSuccess(Alliance alliance) {
-                SpecialMissionRepository.getInstance().getActiveMission(alliance.getId())
-                        .observe(getViewLifecycleOwner(), mission -> {
-                            if (mission != null) {
-                                SpecialMissionRepository.getInstance().updateMissionProgress(
-                                        mission.getId(), userId, "successful_attack",
-                                        new SpecialMissionRepository.OnProgressUpdatedCallback() {
-                                            @Override
-                                            public void onSuccess(int damageDealt, int remainingBossHp) {
-                                                if (damageDealt > 0) {
-                                                    Log.d(TAG, "Special mission updated: " + damageDealt + " damage dealt from successful attack");
-
-                                                    // Dodaj vizuelni feedback
-                                                    if (getContext() != null) {
-                                                        Toast.makeText(getContext(),
-                                                                "Uspešan napad je naneo " + damageDealt + " štete specijalnom bosu!",
-                                                                Toast.LENGTH_SHORT).show();
+                SpecialMissionRepository.getInstance().getActiveMissionOnce(
+                        alliance.getId(),
+                        new SpecialMissionRepository.OnMissionLoadedCallback() {
+                            @Override
+                            public void onSuccess(SpecialMission mission) {
+                                if (mission != null) {
+                                    SpecialMissionRepository.getInstance().updateMissionProgress(
+                                            mission.getId(), userId, "successful_attack",
+                                            new SpecialMissionRepository.OnProgressUpdatedCallback() {
+                                                @Override
+                                                public void onSuccess(int damageDealt, int remainingBossHp) {
+                                                    if (damageDealt > 0) {
+                                                        Log.d(TAG, "Special mission updated: " + damageDealt + " damage dealt");
                                                     }
                                                 }
-                                            }
 
-                                            @Override
-                                            public void onError(String error) {
-                                                Log.e(TAG, "Special mission update failed: " + error);
+                                                @Override
+                                                public void onError(String error) {
+                                                    Log.e(TAG, "Special mission update failed: " + error);
+                                                }
                                             }
-                                        }
-                                );
+                                    );
+                                }
                             }
-                        });
+
+                            @Override
+                            public void onError(String error) {
+                                Log.e(TAG, "Error loading mission: " + error);
+                            }
+                        }
+                );
             }
 
             @Override
             public void onError(String error) {
-                Log.d(TAG, "No alliance found for successful attack update: " + error);
+                Log.d(TAG, "No alliance found: " + error);
             }
 
             @Override
             public void onNotInAlliance() {
-                Log.d(TAG, "User not in alliance, skipping special mission update for successful attack");
+                Log.d(TAG, "User not in alliance");
             }
         });
     }
@@ -546,25 +562,13 @@ public class BossFragment extends Fragment {
     }
 
     private void handleBossDefeat() {
+        Integer defeatedLevel = bossViewModel.getCurrentBossLevel().getValue();
+
         bossViewModel.markCurrentBossDefeated();
 
-        List<Integer> undefeatedLevels = bossViewModel.getUndefeatedBossLevels().getValue();
-
-        if (undefeatedLevels != null && !undefeatedLevels.isEmpty()) {
-            tvBattleMessage.setText("Boss poražen! Priprema se sledeći boss...");
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                bossViewModel.resetAttacks();
-                btnAttack.setEnabled(true);
-                btnAttack.setAlpha(1.0f);
-            }, 2000);
-            return;
-        }
-
-        Integer userLevel = bossViewModel.getUserLevel().getValue();
-        if (userLevel == null) return;
-
-        int coinsReward = calculateCoinsReward(userLevel);
-        Equipment rewardEquipment = GameLogicUtils.generateRandomEquipmentReward(userLevel, 0.20);
+        int coinsReward = calculateCoinsReward(defeatedLevel != null ? defeatedLevel : 1);
+        Equipment rewardEquipment = GameLogicUtils.generateRandomEquipmentReward(
+                defeatedLevel != null ? defeatedLevel : 1, 0.20);
 
         updateUserCoins(coinsReward);
         if (rewardEquipment != null) {
@@ -572,6 +576,16 @@ public class BossFragment extends Fragment {
         }
 
         showTreasureChest(coinsReward, rewardEquipment);
+
+        tvBattleMessage.setText("Boss poražen! Priprema se sledeći boss...");
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            bossViewModel.moveToNextUndefeatedBoss();
+            bossViewModel.resetAttacks();
+            btnAttack.setEnabled(true);
+            btnAttack.setAlpha(1.0f);
+            tvBattleMessage.setText("Spreman za borbu protiv novog bosa!");
+            isProcessingDefeat = false;
+        }, 3000);
     }
 
     // ========== TREASURE CHEST LOGIC ==========

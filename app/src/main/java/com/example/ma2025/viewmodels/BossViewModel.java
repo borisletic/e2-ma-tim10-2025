@@ -16,6 +16,8 @@ import com.example.ma2025.utils.DateUtils;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.SetOptions;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -66,7 +68,6 @@ public class BossViewModel extends AndroidViewModel {
         userBasePp.setValue(0);
         equipmentPpBonus.setValue(0);
         totalPp.setValue(0);
-        userLevel.setValue(0);
         bossMaxHp.setValue(200);
         bossCurrentHp.setValue(200);
         activeEquipment.setValue(new ArrayList<>());
@@ -109,10 +110,14 @@ public class BossViewModel extends AndroidViewModel {
                             Log.d(TAG, "========================");
 
                             userBasePp.setValue(basePp);
-                            userLevel.setValue(1);
+                            userLevel.setValue(level);
 
                             checkUndefeatedBosses(level);
                             calculateTotalPp();
+
+                            // ✅ POZOVI OVDE nakon što su svi podaci učitani
+                            calculateAttackSuccessRate();
+
                             statusMessage.setValue("Korisnik učitan: Nivo " + level + ", Osnovna PP = " + basePp);
                         } else {
                             Log.d(TAG, "User object is null");
@@ -138,7 +143,6 @@ public class BossViewModel extends AndroidViewModel {
                 undefeatedBossLevels.setValue(undefeatedLevels);
                 currentBossIndex.setValue(0);
                 currentBossLevel.setValue(undefeatedLevels.get(0));
-                loadBossForLevel(undefeatedLevels.get(0));
             } else {
                 loadOrCreateBossState(currentLevel);
             }
@@ -164,55 +168,71 @@ public class BossViewModel extends AndroidViewModel {
 
     private void loadBossForLevel(int level) {
         String userId = getCurrentUserId();
-        db.collection("boss_states")
-                .document(userId + "_level_" + level)
-                .get()
-                .addOnSuccessListener(document -> {
-                    int maxHp = calculateMaxHp(level);
-                    int currentHp = document.exists() ?
-                            document.getLong("currentHp").intValue() : maxHp;
+        int maxHp = calculateMaxHp(level);
 
-                    bossMaxHp.setValue(maxHp);
-                    bossCurrentHp.setValue(currentHp);
-                    attacksRemaining.setValue(5);
-                });
+        // UVEK resetuj na max HP
+        bossMaxHp.setValue(maxHp);
+        bossCurrentHp.setValue(maxHp);
+        attacksRemaining.setValue(5);
+
+        // Sačuvaj novo stanje
+        saveBossState(level, maxHp, maxHp, 5);
     }
 
     public void markCurrentBossDefeated() {
         Integer level = currentBossLevel.getValue();
         if (level == null) return;
 
-        // Označava bosa kao poraženog u bazi
         saveBossAsDefeated(level);
 
-        // Prelazi na sledećeg bosa
-        List<Integer> levels = undefeatedBossLevels.getValue();
-        Integer index = currentBossIndex.getValue();
+        Log.d(TAG, "Boss at level " + level + " marked as defeated");
+    }
 
-        if (levels != null && index != null) {
-            levels.remove(index.intValue());
+    public void moveToNextUndefeatedBoss() {
+        List<Integer> undefeated = undefeatedBossLevels.getValue();
+        Integer currentIndex = currentBossIndex.getValue();
 
-            if (levels.isEmpty()) {
-                // Svi bosovi poraženi
-                statusMessage.setValue("Svi bosovi poraženi!");
-            } else {
-                // Učitaj sledećeg bosa
-                currentBossLevel.setValue(levels.get(0));
-                loadBossForLevel(levels.get(0));
+        if (undefeated == null || currentIndex == null) return;
+
+        // Ukloni trenutno poraženog iz liste
+        List<Integer> updatedList = new ArrayList<>(undefeated);
+        if (currentIndex < updatedList.size()) {
+            updatedList.remove((int) currentIndex);
+            undefeatedBossLevels.setValue(updatedList);
+        }
+
+        // Proveri da li ima još neporaženih
+        if (!updatedList.isEmpty()) {
+            currentBossIndex.setValue(0); // Reset na prvog iz nove liste
+            currentBossLevel.setValue(updatedList.get(0));
+            loadBossForLevel(updatedList.get(0));
+        } else {
+            // Svi poraženi, učitaj bosa trenutnog nivoa
+            Integer level = userLevel.getValue();
+            if (level != null) {
+                currentBossLevel.setValue(level);
+                loadOrCreateBossState(level);
             }
-            undefeatedBossLevels.setValue(levels);
         }
     }
 
     private void saveBossAsDefeated(int level) {
         String userId = getCurrentUserId();
+        if (userId == null) return;
+
         Map<String, Object> update = new HashMap<>();
         update.put("isDefeated", true);
         update.put("currentHp", 0);
 
         db.collection("boss_states")
                 .document(userId + "_level_" + level)
-                .update(update);
+                .set(update, SetOptions.merge())
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Boss marked as defeated: level " + level);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to mark boss as defeated: " + e.getMessage());
+                });
     }
 
     /**
@@ -281,7 +301,6 @@ public class BossViewModel extends AndroidViewModel {
      */
     private void loadOrCreateBossState(int userLevel) {
         if (userLevel <= 0) {
-            // Nema bosa za nivo 0 ili manji
             statusMessage.setValue("Dostignite nivo 1 da se borite sa prvim bosom!");
             return;
         }
@@ -298,32 +317,47 @@ public class BossViewModel extends AndroidViewModel {
                         Long attacksLong = document.getLong("attacksRemaining");
                         Boolean isDefeated = document.getBoolean("isDefeated");
 
-                        // Proveri da li je boss već poražen
+                        // ✅ Ako je boss već poražen
                         if (Boolean.TRUE.equals(isDefeated)) {
-                            statusMessage.setValue("Boss za nivo " + userLevel + " je već poražen!");
-                            bossMaxHp.setValue(0);
-                            bossCurrentHp.setValue(0);
-                            attacksRemaining.setValue(0);
                             Log.d(TAG, "Boss already defeated for level " + userLevel);
+
+                            Integer currentUserLevel = this.userLevel.getValue();
+
+                            // Ako je ovo boss trenutnog nivoa i već je poražen
+                            if (currentUserLevel != null && userLevel == currentUserLevel) {
+                                statusMessage.setValue("Boss za nivo " + userLevel + " je već poražen!");
+                                bossMaxHp.setValue(0);
+                                bossCurrentHp.setValue(0);
+                                attacksRemaining.setValue(0);
+                                Log.d(TAG, "Current level boss already defeated, showing empty state");
+                            }
+                            // Ako ima sledećeg bosa
+                            else if (currentUserLevel != null && userLevel < currentUserLevel) {
+                                Log.d(TAG, "Loading next boss level: " + (userLevel + 1));
+                                loadOrCreateBossState(userLevel + 1);
+                            }
+                            // Nema više boseva
+                            else {
+                                statusMessage.setValue("Svi bosevi do nivoa " + currentUserLevel + " su poraženi!");
+                                bossMaxHp.setValue(0);
+                                bossCurrentHp.setValue(0);
+                                attacksRemaining.setValue(0);
+                            }
                             return;
                         }
 
+                        // Boss nije poražen, učitaj normalno
                         Integer savedCurrentHp = currentHpLong != null ? currentHpLong.intValue() : calculateMaxHp(userLevel);
                         Integer savedMaxHp = maxHpLong != null ? maxHpLong.intValue() : calculateMaxHp(userLevel);
                         Integer savedAttacks = attacksLong != null ? attacksLong.intValue() : 5;
 
-                        // Ne resetuj HP ako je boss već oštećen
                         bossMaxHp.setValue(savedMaxHp);
                         bossCurrentHp.setValue(savedCurrentHp);
                         attacksRemaining.setValue(savedAttacks);
 
-                        if (attacksLong == null) {
-                            saveBossState(userLevel, savedMaxHp, savedCurrentHp, savedAttacks);
-                        }
-
-                        Log.d(TAG, "Boss state loaded: " + savedCurrentHp + "/" + savedMaxHp + " HP, " + savedAttacks + " attacks");
+                        Log.d(TAG, "Boss state loaded: " + savedCurrentHp + "/" + savedMaxHp + " HP");
                     } else {
-                        // Kreiranje novog bosa samo ako dokument ne postoji
+                        // Kreiranje novog bosa
                         int maxHp = calculateMaxHp(userLevel);
                         bossMaxHp.setValue(maxHp);
                         bossCurrentHp.setValue(maxHp);
@@ -369,6 +403,7 @@ public class BossViewModel extends AndroidViewModel {
         bossState.put("level", level);
         bossState.put("lastUpdate", System.currentTimeMillis());
         bossState.put("attacksRemaining", attacks);
+        bossState.put("isDefeated", false);
 
         db.collection("boss_states")
                 .document(userId + "_level_" + level)
@@ -405,12 +440,19 @@ public class BossViewModel extends AndroidViewModel {
                     long levelUpTime = user.getLastLevelUpTime();
                     int currentLevel = user.getLevel();
 
-                    long regTime = user.getRegistrationTime();
-                    levelUpTime = (regTime > 0) ? regTime : levelUpTime;
-                    Log.d(TAG, "Using registration time as start period: " + levelUpTime);
+                    // Ako nema lastLevelUpTime (nivo 0->1 prvi put), koristi registraciju
+                    if (levelUpTime == 0) {
+                        levelUpTime = user.getRegistrationTime();
+                        if (levelUpTime == 0) {
+                            levelUpTime = System.currentTimeMillis();
+                        }
+                        Log.d(TAG, "No lastLevelUpTime, using fallback: " + new Date(levelUpTime));
+                    } else {
+                        Log.d(TAG, "Using lastLevelUpTime: " + new Date(levelUpTime));
+                    }
 
                     Log.d(TAG, "=== CALCULATING SUCCESS RATE FOR CURRENT LEVEL ===");
-                    Log.d(TAG, "Current level: " + currentLevel + ", Level up time: " + levelUpTime);
+                    Log.d(TAG, "Current level: " + currentLevel + ", Period start: " + levelUpTime);
 
                     calculateSuccessRateForPeriod(userId, levelUpTime);
                 });
@@ -428,24 +470,26 @@ public class BossViewModel extends AndroidViewModel {
 
                 if (tasks != null) {
                     for (TaskEntity task : tasks) {
+                        // Isključi pauzirane i otkazane
                         if (task.status == TaskEntity.STATUS_PAUSED ||
                                 task.status == TaskEntity.STATUS_CANCELED) {
                             Log.d(TAG, "Excluding paused/canceled task: " + task.title);
                             continue;
                         }
 
-                        if (taskRepository.doesTaskExceedQuota(task)) {
-                            Log.d(TAG, "Task exceeds quota, excluding: " + task.title +
-                                    " (difficulty: " + task.difficulty + ", importance: " + task.importance + ")");
-                            continue;
-                        }
-
-                        totalValidTasks++;
-
                         if (task.status == TaskEntity.STATUS_COMPLETED) {
+                            if (!couldTaskEarnXpWhenCompleted(task, userId)) {
+                                Log.d(TAG, "Task exceeded quota when completed, excluding: " + task.title);
+                                continue;
+                            }
+
+                            totalValidTasks++;
                             completedValidTasks++;
                             Log.d(TAG, "Valid completed task: " + task.title);
-                        } else {
+                        } else if (task.status == TaskEntity.STATUS_ACTIVE ||
+                                task.status == TaskEntity.STATUS_FAILED) {
+                            // Aktivni i nezavršeni zadaci se računaju u ukupan broj
+                            totalValidTasks++;
                             Log.d(TAG, "Valid non-completed task: " + task.title + " (status: " + task.status + ")");
                         }
                     }
@@ -567,7 +611,6 @@ public class BossViewModel extends AndroidViewModel {
         Log.d(TAG, "Refreshing all PP data...");
         loadUserPp();
         loadEquipmentPpBonus();
-        calculateAttackSuccessRate();
     }
 
     // Getters
@@ -602,6 +645,8 @@ public class BossViewModel extends AndroidViewModel {
     public LiveData<Integer> getAttacksRemaining() {
         return attacksRemaining;
     }
+
+    public LiveData<Integer> getCurrentBossIndex() { return currentBossIndex; }
 
     // Helper
     private String getCurrentUserId() {

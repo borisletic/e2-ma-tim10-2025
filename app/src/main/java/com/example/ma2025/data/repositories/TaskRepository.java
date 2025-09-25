@@ -269,6 +269,7 @@ public class TaskRepository {
                     return;
                 }
 
+                // Proveri samo grace period i status - UKLONI kvotu odavde
                 if (!task.canBeCompleted()) {
                     String errorMessage;
                     if (task.isExpired()) {
@@ -295,29 +296,29 @@ public class TaskRepository {
                     userProgressDao.insertOrUpdateUserProgress(userProgress);
                 }
 
+                // Izračunaj XP - kvota utiče SAMO na XP, ne na završavanje
                 int xpEarned = 0;
-
                 if (task.isEligibleForXp()) {
                     xpEarned = task.calculateXpValue(userProgress.currentLevel);
 
+                    // Kvota sprečava samo XP, ne završavanje zadatka
                     if (!canEarnXpForTask(task, userId)) {
                         xpEarned = 0;
                     }
                 }
 
+                // UVEK završi zadatak (osim ponavljajuće)
                 if (!task.isRepeating) {
                     task.markCompleted();
                     taskDao.updateTask(task);
                 }
 
-                if (!task.canEarnXp()) {
-                    xpEarned = 0;
-                }
-
+                // Zapis o završetku zadatka
                 TaskCompletionEntity completion = new TaskCompletionEntity(taskId, xpEarned);
                 completion.completionDate = DateUtils.getStartOfDay(System.currentTimeMillis());
                 taskCompletionDao.insertTaskCompletion(completion);
 
+                // Ažuriraj korisnikov progres samo ako je dobio XP
                 if (xpEarned > 0) {
                     userProgress.addXp(xpEarned);
 
@@ -976,46 +977,9 @@ public class TaskRepository {
                 SpecialMissionRepository.getInstance().getActiveMission(alliance.getId())
                         .observeForever(mission -> {
                             if (mission != null) {
-                                // Proveri da li je lak po težini i normalan po bitnosti
-                                if (task.difficulty == TaskEntity.DIFFICULTY_EASY &&
-                                        task.importance == TaskEntity.IMPORTANCE_NORMAL) {
-
-                                    // Prvi poziv za "lak i normalan" zadatak
-                                    SpecialMissionRepository.getInstance().updateMissionProgress(
-                                            mission.getId(), userId, "easy_task",
-                                            new SpecialMissionRepository.OnProgressUpdatedCallback() {
-                                                @Override
-                                                public void onSuccess(int damageDealt, int remainingBossHp) {
-                                                    Log.d(TAG, "Special mission progress updated (first): " + damageDealt + " damage");
-
-                                                    // Drugi poziv za duplu štetu
-                                                    SpecialMissionRepository.getInstance().updateMissionProgress(
-                                                            mission.getId(), userId, "easy_task",
-                                                            new SpecialMissionRepository.OnProgressUpdatedCallback() {
-                                                                @Override
-                                                                public void onSuccess(int damageDealt2, int remainingBossHp2) {
-                                                                    Log.d(TAG, "Special mission progress updated (second): " + damageDealt2 + " damage");
-                                                                }
-
-                                                                @Override
-                                                                public void onError(String error) {
-                                                                    Log.e(TAG, "Special mission update failed (second): " + error);
-                                                                }
-                                                            }
-                                                    );
-                                                }
-
-                                                @Override
-                                                public void onError(String error) {
-                                                    Log.e(TAG, "Special mission update failed (first): " + error);
-                                                }
-                                            }
-                                    );
-                                    return;
-                                }
-
-                                // Normalna logika za ostale zadatke
                                 String actionType;
+
+                                // Određivanje tipa akcije
                                 if (task.difficulty == TaskEntity.DIFFICULTY_VERY_EASY ||
                                         task.difficulty == TaskEntity.DIFFICULTY_EASY) {
                                     actionType = "easy_task";
@@ -1023,6 +987,7 @@ public class TaskRepository {
                                     actionType = "hard_task";
                                 }
 
+                                // JEDAN poziv za update - MissionProgress će sam da obradi štetu
                                 SpecialMissionRepository.getInstance().updateMissionProgress(
                                         mission.getId(), userId, actionType,
                                         new SpecialMissionRepository.OnProgressUpdatedCallback() {
