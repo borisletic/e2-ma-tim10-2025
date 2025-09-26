@@ -5,6 +5,7 @@ import com.example.ma2025.data.models.Alliance;
 import com.example.ma2025.data.models.AllianceInvitation;
 import com.example.ma2025.data.models.AllianceMember;
 import com.example.ma2025.data.models.AllianceMessage;
+import com.example.ma2025.data.models.SpecialMission;
 import com.example.ma2025.data.models.User;
 import com.example.ma2025.utils.Constants;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -428,29 +429,25 @@ public class AllianceRepository {
     }
 
     private void updateSpecialMissionForMessage(String allianceId, String senderId) {
-        SpecialMissionRepository.getInstance().getActiveMission(allianceId)
-                .observeForever(mission -> {
-                    if (mission != null) {
-                        // Koristi trenutni datum
-                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                        String currentDate = sdf.format(new Date());
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String currentDate = sdf.format(new Date());
 
-                        SpecialMissionRepository.getInstance().updateMissionProgressWithDate(
-                                mission.getId(), senderId, "message_day", currentDate,
-                                new SpecialMissionRepository.OnProgressUpdatedCallback() {
-                                    @Override
-                                    public void onSuccess(int damageDealt, int remainingBossHp) {
-                                        Log.d(TAG, "Special mission updated for message: " + damageDealt + " damage for date " + currentDate);
-                                    }
-
-                                    @Override
-                                    public void onError(String error) {
-                                        Log.e(TAG, "Special mission update failed for message: " + error);
-                                    }
-                                }
-                        );
+        SpecialMissionRepository.getInstance().recordMessageSent(
+                allianceId,
+                senderId,
+                currentDate,
+                new SpecialMissionRepository.OnTaskRecordedCallback() {
+                    @Override
+                    public void onSuccess(SpecialMission mission) {
+                        Log.d(TAG, "Message day recorded in mission. Boss HP: " + mission.getBossHp());
                     }
-                });
+
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "No active mission: " + error);
+                    }
+                }
+        );
     }
 
     public void getMessages(String allianceId, OnMessagesListener listener) {

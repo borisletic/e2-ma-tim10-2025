@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import com.example.ma2025.R;
 import com.example.ma2025.data.models.Equipment;
+import com.example.ma2025.data.models.SpecialMission;
 import com.example.ma2025.data.models.User;
 import com.example.ma2025.data.preferences.PreferencesManager;
 import com.example.ma2025.databinding.FragmentEquipmentBinding;
@@ -382,40 +383,34 @@ public class EquipmentFragment extends Fragment implements
         allianceRepo.getUserAlliance(userId, new AllianceRepository.OnAllianceLoadedListener() {
             @Override
             public void onSuccess(Alliance alliance) {
-                SpecialMissionRepository.getInstance().getActiveMission(alliance.getId())
-                        .observe(getViewLifecycleOwner(), mission -> { // ← Zameniti observeForever sa observe
-                            if (mission != null) {
-                                SpecialMissionRepository.getInstance().updateMissionProgress(
-                                        mission.getId(), userId, "store_visit",
-                                        new SpecialMissionRepository.OnProgressUpdatedCallback() {
-                                            @Override
-                                            public void onSuccess(int damageDealt, int remainingBossHp) {
-                                                if (damageDealt > 0) {
-                                                    Log.d(TAG, "Special mission updated: " + damageDealt + " damage dealt");
-                                                    Toast.makeText(getContext(),
-                                                            "Kupovina je nanela " + damageDealt + " štete bosu specijalne misije!",
-                                                            Toast.LENGTH_SHORT).show();
-                                                }
-                                            }
-
-                                            @Override
-                                            public void onError(String error) {
-                                                Log.e(TAG, "Special mission update failed: " + error);
-                                            }
-                                        }
-                                );
+                SpecialMissionRepository.getInstance().recordStoreVisit(
+                        alliance.getId(),
+                        userId,
+                        new SpecialMissionRepository.OnTaskRecordedCallback() {
+                            @Override
+                            public void onSuccess(SpecialMission mission) {
+                                Log.d(TAG, "Store visit recorded. Boss HP: " + mission.getBossHp());
+                                Toast.makeText(getContext(),
+                                        "Kupovina je nanela 2 HP štete bosu specijalne misije!",
+                                        Toast.LENGTH_SHORT).show();
                             }
-                        });
+
+                            @Override
+                            public void onError(String error) {
+                                Log.d(TAG, "No active mission: " + error);
+                            }
+                        }
+                );
             }
 
             @Override
             public void onError(String error) {
-                Log.d(TAG, "No alliance found for purchase update: " + error);
+                Log.d(TAG, "No alliance: " + error);
             }
 
             @Override
             public void onNotInAlliance() {
-                Log.d(TAG, "User not in alliance, skipping special mission update for purchase");
+                Log.d(TAG, "User not in alliance");
             }
         });
     }
@@ -489,10 +484,7 @@ public class EquipmentFragment extends Fragment implements
                             // Ažuriraj novčiće u Firebase
                             updateUserCoins();
 
-                            // ========== ISPRAVKA: Ažuriraj specijalnu misiju samo za napitke ==========
-                            if (equipment.getType() == Constants.EQUIPMENT_TYPE_POTION) {
-                                updateSpecialMissionForPurchase(userId);
-                            }
+                            updateSpecialMissionForPurchase(userId);
 
                             Toast.makeText(getContext(),
                                     equipment.getName() + " uspešno kupljeno!",

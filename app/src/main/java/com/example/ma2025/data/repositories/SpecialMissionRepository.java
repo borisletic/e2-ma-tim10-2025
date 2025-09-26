@@ -4,7 +4,6 @@ import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.example.ma2025.data.database.entities.TaskEntity;
 import com.example.ma2025.data.models.SpecialMission;
 import com.example.ma2025.data.models.MissionProgress;
 import com.example.ma2025.data.models.Equipment;
@@ -120,7 +119,203 @@ public class SpecialMissionRepository {
                 .addOnFailureListener(e -> callback.onError(e.getMessage()));
     }
 
-    // ========== MISSION PROGRESS TRACKING ==========
+    // ========== MISSION PROGRESS TRACKING - NOVA IMPLEMENTACIJA ==========
+
+    /**
+     * Registruje završen zadatak sa pravilnim brojanjem prema specifikaciji
+     */
+    public void recordTaskCompleted(String allianceId, String userId,
+                                    int tezina, int bitnost, boolean isSuccess,
+                                    OnTaskRecordedCallback callback) {
+        db.collection(Constants.COLLECTION_MISSIONS)
+                .whereEqualTo("allianceId", allianceId)
+                .whereEqualTo("completed", false)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    if (querySnapshot.isEmpty()) {
+                        callback.onError("Nema aktivne misije");
+                        return;
+                    }
+
+                    DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+                    SpecialMission mission = document.toObject(SpecialMission.class);
+
+                    if (mission == null || mission.isExpired()) {
+                        callback.onError("Misija je istekla");
+                        return;
+                    }
+
+                    MissionProgress progress = mission.getMemberProgress().get(userId);
+                    if (progress == null) {
+                        progress = new MissionProgress(userId);
+                    }
+
+                    if (!isSuccess) {
+                        progress.taskFailed();
+                    } else {
+                        // Proveri da li je "easy and normal" (računa se 2 puta)
+                        boolean isEasyAndNormal = MissionProgress.isEasyAndNormal(tezina, bitnost);
+
+                        // Proveri da li je "easy" zadatak
+                        if (MissionProgress.isEasyTask(tezina, bitnost)) {
+                            progress.incrementEasyTasks(isEasyAndNormal);
+                        } else {
+                            // Težak zadatak
+                            progress.incrementHardTasks();
+                        }
+                    }
+
+                    mission.getMemberProgress().put(userId, progress);
+                    mission.updateBossHp();
+
+                    // Ažuriraj u bazi
+                    db.collection(Constants.COLLECTION_MISSIONS)
+                            .document(document.getId())
+                            .set(mission)
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "Task recorded for user " + userId);
+                                callback.onSuccess(mission);
+                            })
+                            .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                })
+                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+    }
+
+    /**
+     * Registruje kupovinu u prodavnici
+     */
+    public void recordStoreVisit(String allianceId, String userId,
+                                 OnTaskRecordedCallback callback) {
+        db.collection(Constants.COLLECTION_MISSIONS)
+                .whereEqualTo("allianceId", allianceId)
+                .whereEqualTo("completed", false)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    if (querySnapshot.isEmpty()) {
+                        callback.onError("Nema aktivne misije");
+                        return;
+                    }
+
+                    DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+                    SpecialMission mission = document.toObject(SpecialMission.class);
+
+                    if (mission == null || mission.isExpired()) {
+                        callback.onError("Misija je istekla");
+                        return;
+                    }
+
+                    MissionProgress progress = mission.getMemberProgress().get(userId);
+                    if (progress == null) {
+                        progress = new MissionProgress(userId);
+                    }
+
+                    progress.incrementStoreVisits();
+                    mission.getMemberProgress().put(userId, progress);
+                    mission.updateBossHp();
+
+                    db.collection(Constants.COLLECTION_MISSIONS)
+                            .document(document.getId())
+                            .set(mission)
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "Store visit recorded for user " + userId);
+                                callback.onSuccess(mission);
+                            })
+                            .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                })
+                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+    }
+
+    /**
+     * Registruje uspešan udarac u regularnoj borbi
+     */
+    public void recordSuccessfulAttack(String allianceId, String userId,
+                                       OnTaskRecordedCallback callback) {
+        db.collection(Constants.COLLECTION_MISSIONS)
+                .whereEqualTo("allianceId", allianceId)
+                .whereEqualTo("completed", false)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    if (querySnapshot.isEmpty()) {
+                        callback.onError("Nema aktivne misije");
+                        return;
+                    }
+
+                    DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+                    SpecialMission mission = document.toObject(SpecialMission.class);
+
+                    if (mission == null || mission.isExpired()) {
+                        callback.onError("Misija je istekla");
+                        return;
+                    }
+
+                    MissionProgress progress = mission.getMemberProgress().get(userId);
+                    if (progress == null) {
+                        progress = new MissionProgress(userId);
+                    }
+
+                    progress.incrementSuccessfulAttacks();
+                    mission.getMemberProgress().put(userId, progress);
+                    mission.updateBossHp();
+
+                    db.collection(Constants.COLLECTION_MISSIONS)
+                            .document(document.getId())
+                            .set(mission)
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "Successful attack recorded for user " + userId);
+                                callback.onSuccess(mission);
+                            })
+                            .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                })
+                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+    }
+
+    /**
+     * Registruje poruku poslatu u savezu
+     */
+    public void recordMessageSent(String allianceId, String userId, String date,
+                                  OnTaskRecordedCallback callback) {
+        db.collection(Constants.COLLECTION_MISSIONS)
+                .whereEqualTo("allianceId", allianceId)
+                .whereEqualTo("completed", false)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    if (querySnapshot.isEmpty()) {
+                        callback.onError("Nema aktivne misije");
+                        return;
+                    }
+
+                    DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+                    SpecialMission mission = document.toObject(SpecialMission.class);
+
+                    if (mission == null || mission.isExpired()) {
+                        callback.onError("Misija je istekla");
+                        return;
+                    }
+
+                    MissionProgress progress = mission.getMemberProgress().get(userId);
+                    if (progress == null) {
+                        progress = new MissionProgress(userId);
+                    }
+
+                    progress.addMessageDay(date != null ? date : getCurrentDate());
+                    mission.getMemberProgress().put(userId, progress);
+                    mission.updateBossHp();
+
+                    db.collection(Constants.COLLECTION_MISSIONS)
+                            .document(document.getId())
+                            .set(mission)
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "Message day recorded for user " + userId);
+                                callback.onSuccess(mission);
+                            })
+                            .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                })
+                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+    }
 
     public void updateMissionProgress(String missionId, String userId,
                                       String actionType, OnProgressUpdatedCallback callback) {
@@ -171,38 +366,10 @@ public class SpecialMissionRepository {
                                 })
                                 .addOnFailureListener(e -> callback.onError(e.getMessage()));
                     } else {
-                        callback.onSuccess(0, mission.getBossHp()); // Nema štete, kvota dosegnuta
+                        callback.onSuccess(0, mission.getBossHp());
                     }
                 })
                 .addOnFailureListener(e -> callback.onError(e.getMessage()));
-    }
-
-    public void getActiveMissionOnce(String allianceId, OnMissionLoadedCallback callback) {
-        db.collection("special_missions")
-                .whereEqualTo("allianceId", allianceId)
-                .whereEqualTo("isActive", true)
-                .limit(1)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    if (!querySnapshot.isEmpty()) {
-                        SpecialMission mission = querySnapshot.getDocuments()
-                                .get(0)
-                                .toObject(SpecialMission.class);
-                        callback.onSuccess(mission);
-                    } else {
-                        callback.onSuccess(null);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error loading mission", e);
-                    callback.onError(e.getMessage());
-                });
-    }
-
-    // Callback interface
-    public interface OnMissionLoadedCallback {
-        void onSuccess(SpecialMission mission);
-        void onError(String error);
     }
 
     private int updateUserProgress(MissionProgress progress, String actionType, String date) {
@@ -217,7 +384,7 @@ public class SpecialMissionRepository {
                 actionPerformed = progress.incrementSuccessfulAttacks();
                 break;
             case "easy_task":
-                actionPerformed = progress.incrementEasyTasks();
+                actionPerformed = progress.incrementEasyTasks(false);
                 break;
             case "hard_task":
                 actionPerformed = progress.incrementHardTasks();
@@ -253,7 +420,27 @@ public class SpecialMissionRepository {
         return sdf.format(new Date());
     }
 
-    // ========== MISSION COMPLETION ==========
+    public void getActiveMissionOnce(String allianceId, OnMissionLoadedCallback callback) {
+        db.collection("special_missions")
+                .whereEqualTo("allianceId", allianceId)
+                .whereEqualTo("isActive", true)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    if (!querySnapshot.isEmpty()) {
+                        SpecialMission mission = querySnapshot.getDocuments()
+                                .get(0)
+                                .toObject(SpecialMission.class);
+                        callback.onSuccess(mission);
+                    } else {
+                        callback.onSuccess(null);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading mission", e);
+                    callback.onError(e.getMessage());
+                });
+    }
 
     private void handleMissionCompletion(SpecialMission mission, OnProgressUpdatedCallback callback) {
         Log.d(TAG, "Mission completed! Distributing rewards...");
@@ -263,38 +450,30 @@ public class SpecialMissionRepository {
             String userId = entry.getKey();
             MissionProgress progress = entry.getValue();
 
-            // Dodaj bonus za "bez failed tasks"
             int finalBonus = progress.calculateFinalBonus();
             if (finalBonus > 0) {
-                mission.dealDamage(finalBonus); // Simbolično, misija je već završena
+                mission.dealDamage(finalBonus);
                 Log.d(TAG, "User " + userId + " gets " + finalBonus + " bonus for no failed tasks");
             }
 
-            // Distribuiraj nagrade
             distributeRewardsToUser(userId, mission.getAllianceId(), progress);
-
-            // Stvori bedž za korisnika
             createMissionBadge(userId, progress);
         }
 
-        callback.onSuccess(0, 0); // Misija završena
+        callback.onSuccess(0, 0);
     }
 
     private void distributeRewardsToUser(String userId, String allianceId, MissionProgress progress) {
         executor.execute(() -> {
             try {
-                // Specifikacija: po jedan napitak, jedan komad odeće i 50% novčića
-
                 Equipment clothing = generateRandomClothing();
                 Equipment potion = generateRandomPotion();
 
                 saveEquipmentReward(userId, clothing);
                 saveEquipmentReward(userId, potion);
-
                 updateUserCoinsForMission(userId);
 
                 Log.d(TAG, "Rewards distributed to user: " + userId);
-
             } catch (Exception e) {
                 Log.e(TAG, "Error distributing rewards to user " + userId, e);
             }
@@ -309,7 +488,6 @@ public class SpecialMissionRepository {
         String name = clothingNames[index];
         String type = clothingTypes[index];
 
-        // Različiti efekti na osnovu tipa odeće
         switch (type) {
             case "gloves":
                 return Equipment.createClothing(name, Constants.EFFECT_PP_BOOST, 0.10, 50);
@@ -324,7 +502,7 @@ public class SpecialMissionRepository {
 
     private Equipment generateRandomPotion() {
         String[] potionNames = {"Napoj Saveza", "Eliksir Misije", "Tonik Tima"};
-        double[] potionEffects = {0.20, 0.40, 0.05}; // 20%, 40%, 5% trajno
+        double[] potionEffects = {0.20, 0.40, 0.05};
         boolean[] isPermanent = {false, false, true};
 
         int index = (int)(Math.random() * potionNames.length);
@@ -336,7 +514,6 @@ public class SpecialMissionRepository {
     }
 
     private void createMissionBadge(String userId, MissionProgress progress) {
-        // Izračunaj ukupan broj uspešno rešenih specijalnih zadataka
         int totalSpecialTasks = progress.getStoreVisits() +
                 progress.getSuccessfulAttacks() +
                 progress.getEasyTasksCompleted() +
@@ -362,7 +539,7 @@ public class SpecialMissionRepository {
     private void saveEquipmentReward(String userId, Equipment equipment) {
         equipment.setUserId(userId);
         equipment.setId(null);
-        equipment.setPrice(0); // Besplatno - nagrada
+        equipment.setPrice(0);
 
         db.collection(Constants.COLLECTION_EQUIPMENT)
                 .add(equipment)
@@ -397,13 +574,9 @@ public class SpecialMissionRepository {
     }
 
     private int calculateMissionCoinReward(int userLevel) {
-        // 50% od nagrade narednog bosa u regularnom nivou
-        // Formula za nagradu bosa: 200 * 1.2^(level-1)
         int nextLevelReward = (int)(200 * Math.pow(1.2, userLevel));
-        return nextLevelReward / 2; // 50% od nagrade
+        return nextLevelReward / 2;
     }
-
-    // ========== MISSION MONITORING ==========
 
     public LiveData<SpecialMission> getActiveMission(String allianceId) {
         MutableLiveData<SpecialMission> missionLiveData = new MutableLiveData<>();
@@ -428,57 +601,10 @@ public class SpecialMissionRepository {
                         }
                     }
 
-                    missionLiveData.setValue(null); // Nema aktivne misije
+                    missionLiveData.setValue(null);
                 });
 
         return missionLiveData;
-    }
-
-    public void getMissionProgress(String missionId, String userId, OnProgressRetrievedCallback callback) {
-        db.collection(Constants.COLLECTION_MISSIONS)
-                .document(missionId)
-                .get()
-                .addOnSuccessListener(document -> {
-                    if (document.exists()) {
-                        SpecialMission mission = document.toObject(SpecialMission.class);
-                        if (mission != null) {
-                            MissionProgress progress = mission.getMemberProgress().get(userId);
-                            callback.onSuccess(progress != null ? progress : new MissionProgress(userId));
-                        } else {
-                            callback.onError("Greška pri učitavanju misije");
-                        }
-                    } else {
-                        callback.onError("Misija ne postoji");
-                    }
-                })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
-    }
-
-    // ========== HELPER METHODS ==========
-
-    public void getMissionStatistics(String missionId, OnMissionStatisticsCallback callback) {
-        db.collection(Constants.COLLECTION_MISSIONS)
-                .document(missionId)
-                .get()
-                .addOnSuccessListener(document -> {
-                    if (document.exists()) {
-                        SpecialMission mission = document.toObject(SpecialMission.class);
-                        if (mission != null) {
-                            Map<String, Object> stats = new HashMap<>();
-                            stats.put("totalDamageDealt", mission.getMaxBossHp() - mission.getBossHp());
-                            stats.put("progressPercentage", mission.getProgressPercentage());
-                            stats.put("remainingTime", mission.getRemainingTime());
-                            stats.put("memberCount", mission.getMemberProgress().size());
-
-                            callback.onSuccess(stats);
-                        } else {
-                            callback.onError("Greška pri učitavanju statistike");
-                        }
-                    } else {
-                        callback.onError("Misija ne postoji");
-                    }
-                })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
     }
 
     // ========== CALLBACK INTERFACES ==========
@@ -506,6 +632,16 @@ public class SpecialMissionRepository {
 
     public interface OnMissionStatisticsCallback {
         void onSuccess(Map<String, Object> statistics);
+        void onError(String error);
+    }
+
+    public interface OnTaskRecordedCallback {
+        void onSuccess(SpecialMission mission);
+        void onError(String error);
+    }
+
+    public interface OnMissionLoadedCallback {
+        void onSuccess(SpecialMission mission);
         void onError(String error);
     }
 }
