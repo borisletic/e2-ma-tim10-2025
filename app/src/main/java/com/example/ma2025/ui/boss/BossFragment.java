@@ -461,34 +461,18 @@ public class BossFragment extends Fragment {
         allianceRepo.getUserAlliance(userId, new AllianceRepository.OnAllianceLoadedListener() {
             @Override
             public void onSuccess(Alliance alliance) {
-                SpecialMissionRepository.getInstance().getActiveMissionOnce(
+                SpecialMissionRepository.getInstance().recordSuccessfulAttack(
                         alliance.getId(),
-                        new SpecialMissionRepository.OnMissionLoadedCallback() {
+                        userId,
+                        new SpecialMissionRepository.OnTaskRecordedCallback() {
                             @Override
                             public void onSuccess(SpecialMission mission) {
-                                if (mission != null) {
-                                    SpecialMissionRepository.getInstance().updateMissionProgress(
-                                            mission.getId(), userId, "successful_attack",
-                                            new SpecialMissionRepository.OnProgressUpdatedCallback() {
-                                                @Override
-                                                public void onSuccess(int damageDealt, int remainingBossHp) {
-                                                    if (damageDealt > 0) {
-                                                        Log.d(TAG, "Special mission updated: " + damageDealt + " damage dealt");
-                                                    }
-                                                }
-
-                                                @Override
-                                                public void onError(String error) {
-                                                    Log.e(TAG, "Special mission update failed: " + error);
-                                                }
-                                            }
-                                    );
-                                }
+                                // Napad uspešno zabeležen
                             }
 
                             @Override
                             public void onError(String error) {
-                                Log.e(TAG, "Error loading mission: " + error);
+                                // Nema aktivne misije
                             }
                         }
                 );
@@ -496,12 +480,12 @@ public class BossFragment extends Fragment {
 
             @Override
             public void onError(String error) {
-                Log.d(TAG, "No alliance found: " + error);
+                // Greška pri učitavanju saveza
             }
 
             @Override
             public void onNotInAlliance() {
-                Log.d(TAG, "User not in alliance");
+                // Korisnik nije u savezu
             }
         });
     }

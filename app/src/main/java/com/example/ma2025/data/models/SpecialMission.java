@@ -56,6 +56,25 @@ public class SpecialMission {
         }
     }
 
+    /**
+     * Ažurira HP bosa na osnovu ukupne štete svih članova
+     */
+    public void updateBossHp() {
+        int totalDamage = 0;
+
+        if (memberProgress != null) {
+            for (MissionProgress progress : memberProgress.values()) {
+                totalDamage += progress.getTotalDamageDealt();
+            }
+        }
+
+        this.bossHp = Math.max(0, maxBossHp - totalDamage);
+
+        if (this.bossHp <= 0) {
+            this.isCompleted = true;
+        }
+    }
+
     public boolean isExpired() {
         return System.currentTimeMillis() > endTime;
     }

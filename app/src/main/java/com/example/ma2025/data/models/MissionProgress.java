@@ -1,9 +1,9 @@
 package com.example.ma2025.data.models;
 
+import com.example.ma2025.data.database.entities.TaskEntity;
+
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class MissionProgress {
     private String userId;
@@ -38,7 +38,7 @@ public class MissionProgress {
     public int getHardTasksCompleted() { return hardTasksCompleted; }
     public boolean isNoFailedTasks() { return noFailedTasks; }
     public List<String> getMessageDays() { return messageDays; }
-    public int getMessageDaysCount() { return messageDays.size(); }
+    public int getMessageDaysCount() { return messageDays != null ? messageDays.size() : 0; }
     public int getTotalDamageDealt() { return totalDamageDealt; }
 
     // Setteri
@@ -48,64 +48,123 @@ public class MissionProgress {
     public void setEasyTasksCompleted(int easyTasksCompleted) { this.easyTasksCompleted = easyTasksCompleted; }
     public void setHardTasksCompleted(int hardTasksCompleted) { this.hardTasksCompleted = hardTasksCompleted; }
     public void setNoFailedTasks(boolean noFailedTasks) { this.noFailedTasks = noFailedTasks; }
-    public void setMessageDays(List<String> messageDays) { this.messageDays = messageDays; }
+    public void setMessageDays(List<String> messageDays) {
+        this.messageDays = messageDays != null ? messageDays : new ArrayList<>();
+    }
     public void setTotalDamageDealt(int totalDamageDealt) { this.totalDamageDealt = totalDamageDealt; }
 
-    // Utility metode sa kvotama
+    // ========== GLAVNE METODE ZA SPECIJALNE ZADATKE ==========
+
+    /**
+     * Kupovina u prodavnici (max 5) - 2 HP
+     */
     public boolean incrementStoreVisits() {
         if (storeVisits < 5) {
             storeVisits++;
             totalDamageDealt += 2;
             return true;
         }
-        return false; // Kvota dosegnuta
+        return false;
     }
 
+    /**
+     * Uspešan udarac u regularnoj borbi (max 10) - 2 HP
+     */
     public boolean incrementSuccessfulAttacks() {
         if (successfulAttacks < 10) {
             successfulAttacks++;
             totalDamageDealt += 2;
             return true;
         }
-        return false; // Kvota dosegnuta
+        return false;
     }
 
-    public boolean incrementEasyTasks() {
+    /**
+     * Laki zadaci (max 10) - 1 HP ili 2 HP ako je "easy and normal"
+     */
+    public boolean incrementEasyTasks(boolean isEasyAndNormal) {
         if (easyTasksCompleted < 10) {
-            easyTasksCompleted++;
-            totalDamageDealt += 1;
+            int increment = isEasyAndNormal ? 2 : 1;
+            int newValue = Math.min(easyTasksCompleted + increment, 10);
+            int actualIncrement = newValue - easyTasksCompleted;
+
+            easyTasksCompleted = newValue;
+            totalDamageDealt += actualIncrement;
             return true;
         }
-        return false; // Kvota dosegnuta
+        return false;
     }
 
+    /**
+     * Teški zadaci (max 6) - 4 HP
+     */
     public boolean incrementHardTasks() {
         if (hardTasksCompleted < 6) {
             hardTasksCompleted++;
             totalDamageDealt += 4;
             return true;
         }
-        return false; // Kvota dosegnuta
+        return false;
     }
 
+    /**
+     * Poruka u savezu (računa se po danu) - 4 HP
+     */
     public boolean addMessageDay(String date) {
+        if (messageDays == null) {
+            messageDays = new ArrayList<>();
+        }
+
         if (!messageDays.contains(date)) {
             messageDays.add(date);
             totalDamageDealt += 4;
             return true;
         }
-        return false; // Dan već zabeležen
+        return false;
     }
 
+    /**
+     * Označava da je zadatak neuspešan
+     */
     public void taskFailed() {
         noFailedTasks = false;
     }
 
+    /**
+     * Bonus za "bez neuspešnih zadataka" - 10 HP
+     */
     public int calculateFinalBonus() {
         return noFailedTasks ? 10 : 0;
     }
 
-    // Metoda za proveru da li može da izvršava određenu akciju
+    // ========== HELPER METODE ==========
+
+    /**
+     * Provera da li je zadatak "easy and normal" (Lak 3XP i Normalan 1XP)
+     * Takvi zadaci se broje 2 puta
+     */
+    public static boolean isEasyAndNormal(int tezina, int bitnost) {
+        // Umesto da proverava XP (3, 1), proveri konstante (2, 1)
+        return (tezina == TaskEntity.DIFFICULTY_EASY && bitnost == TaskEntity.IMPORTANCE_NORMAL);
+    }
+
+    /**
+     * Provera da li je zadatak "easy" (veoma lak, lak, normalan ili važan)
+     */
+    public static boolean isEasyTask(int tezina, int bitnost) {
+        // Veoma lak (1) ili Lak (2) težina
+        boolean isEasyDifficulty = (tezina == TaskEntity.DIFFICULTY_VERY_EASY ||
+                tezina == TaskEntity.DIFFICULTY_EASY);
+        // Normalan (1) ili Važan (2) bitnost
+        boolean isNormalImportance = (bitnost == TaskEntity.IMPORTANCE_NORMAL ||
+                bitnost == TaskEntity.IMPORTANCE_IMPORTANT);
+
+        return isEasyDifficulty || isNormalImportance;
+    }
+
+    /**
+     * Provera da li korisnik može izvršiti akciju (nije dostigao kvotu)
+     */
     public boolean canPerformAction(String actionType) {
         switch (actionType) {
             case "store_visit":
@@ -117,13 +176,15 @@ public class MissionProgress {
             case "hard_task":
                 return hardTasksCompleted < 6;
             case "message_day":
-                return true; // Nema ograničenja
+                return true;
             default:
                 return false;
         }
     }
 
-    // Metoda za dobijanje preostale kvote
+    /**
+     * Preostala kvota za određenu akciju
+     */
     public int getRemainingQuota(String actionType) {
         switch (actionType) {
             case "store_visit":

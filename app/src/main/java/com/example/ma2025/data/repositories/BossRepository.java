@@ -13,6 +13,9 @@ import com.example.ma2025.data.database.dao.TaskDao;
 import com.example.ma2025.data.database.entities.BossEntity;
 import com.example.ma2025.data.database.entities.UserProgressEntity;
 import com.example.ma2025.data.database.entities.TaskEntity;
+import com.example.ma2025.data.models.Alliance;
+import com.example.ma2025.data.models.SpecialMission;
+
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -144,7 +147,7 @@ public class BossRepository {
                 // Izračunaj šansu uspešnosti napada na osnovu rešenih zadataka
                 float successRate = calculateAttackSuccessRate(userId);
 
-                // Generiraj random broj za određivanje da li je napad uspešan
+                // Generiši random broj za određivanje da li je napad uspešan
                 boolean attackHits = Math.random() < successRate;
 
                 if (attackHits) {
@@ -154,6 +157,8 @@ public class BossRepository {
 
                     // Ažuriraj bosa u bazi
                     bossDao.updateBoss(boss);
+
+                    recordSuccessfulAttackInMission(userId);
 
                     if (bossDefeated) {
                         // Bos je poražen - dodaj nagrade
@@ -180,6 +185,50 @@ public class BossRepository {
                 }
             }
         });
+    }
+
+    /**
+     * Registruje uspešan napad u specijalnoj misiji
+     */
+    private void recordSuccessfulAttackInMission(String userId) {
+        Log.d(TAG, "=== RECORDING ATTACK FOR USER: " + userId + " ===");
+
+        AllianceRepository allianceRepository = new AllianceRepository();
+        allianceRepository.getUserAlliance(userId,
+                new AllianceRepository.OnAllianceLoadedListener() {
+                    @Override
+                    public void onSuccess(Alliance alliance) {
+                        Log.d(TAG, "✅ Alliance found: " + alliance.getId() + ", name: " + alliance.getName());
+
+                        SpecialMissionRepository.getInstance().recordSuccessfulAttack(
+                                alliance.getId(),
+                                userId,
+                                new SpecialMissionRepository.OnTaskRecordedCallback() {
+                                    @Override
+                                    public void onSuccess(SpecialMission mission) {
+                                        Log.d(TAG, "✅✅ ATTACK RECORDED! Attacks: " +
+                                                mission.getMemberProgress().get(userId).getSuccessfulAttacks() +
+                                                ", Boss HP: " + mission.getBossHp());
+                                    }
+
+                                    @Override
+                                    public void onError(String error) {
+                                        Log.e(TAG, "❌ Failed to record attack: " + error);
+                                    }
+                                }
+                        );
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.e(TAG, "❌ Alliance error: " + error);
+                    }
+
+                    @Override
+                    public void onNotInAlliance() {
+                        Log.e(TAG, "❌ User NOT in alliance");
+                    }
+                });
     }
 
     /**

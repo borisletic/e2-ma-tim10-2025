@@ -16,6 +16,7 @@ import com.example.ma2025.data.database.dao.TaskCompletionDao;
 import com.example.ma2025.data.database.dao.DailyStatsDao;
 import com.example.ma2025.data.database.dao.UserProgressDao;
 import com.example.ma2025.data.models.Alliance;
+import com.example.ma2025.data.models.SpecialMission;
 import com.example.ma2025.utils.Constants;
 import com.example.ma2025.utils.DateUtils;
 import com.example.ma2025.utils.GameLogicUtils;
@@ -256,8 +257,6 @@ public class TaskRepository {
         return taskDao.getTasksForDateRange(userId, startTime, endTime);
     }
 
-    // ========== TASK COMPLETION WITH GRACE PERIOD ==========
-
     public void completeTask(long taskId, String userId, OnTaskCompletedCallback callback) {
         executor.execute(() -> {
             try {
@@ -338,7 +337,9 @@ public class TaskRepository {
                 syncTaskToFirebase(task);
                 syncUserProgressToFirebase(userProgress);
 
-                checkAndUpdateSpecialMission(userId, task);
+                // ========== DODAJ OVO - REGISTRUJ U SPECIJALNOJ MISIJI ==========
+                checkAndUpdateSpecialMission(userId, task, true); // true = success
+                // ================================================================
 
                 if (callback != null) {
                     callback.onSuccess(xpEarned, userProgress.currentLevel);
@@ -351,6 +352,48 @@ public class TaskRepository {
                 }
             }
         });
+    }
+
+    private void checkAndUpdateSpecialMission(String userId, TaskEntity task, boolean isSuccess) {
+        // Kreiraj instancu AllianceRepository
+        AllianceRepository allianceRepository = new AllianceRepository();
+
+        // Proveri da li korisnik ima savez
+        allianceRepository.getUserAlliance(userId,
+                new AllianceRepository.OnAllianceLoadedListener() {
+                    @Override
+                    public void onSuccess(Alliance alliance) {
+                        // Registruj zadatak u specijalnoj misiji
+                        SpecialMissionRepository.getInstance().recordTaskCompleted(
+                                alliance.getId(),
+                                userId,
+                                task.difficulty,
+                                task.importance,
+                                isSuccess,
+                                new SpecialMissionRepository.OnTaskRecordedCallback() {
+                                    @Override
+                                    public void onSuccess(SpecialMission mission) {
+                                        Log.d(TAG, "Task recorded in special mission. Boss HP: " + mission.getBossHp());
+                                    }
+
+                                    @Override
+                                    public void onError(String error) {
+                                        Log.d(TAG, "No active mission or error: " + error);
+                                    }
+                                }
+                        );
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "User not in alliance: " + error);
+                    }
+
+                    @Override
+                    public void onNotInAlliance() {
+                        Log.d(TAG, "User is not in any alliance");
+                    }
+                });
     }
 
     // ========== TASK STATUS CHANGES WITH GRACE PERIOD ==========
